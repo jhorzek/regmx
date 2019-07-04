@@ -1,16 +1,42 @@
 getEstimatedParameters <- function(regModel, regType, regOn, regIndicators, zeroThresh){
-  estimated <- 0
-  for(matrix in regModel$Submodel$matrices){
-    estimated <- estimated + sum(matrix$free)
-  }
-  ## subtract regularized parameters that fall below zeroThresh
+  matrices <- regModel$Submodel$matrices
 
-  setToZero <- 0
+  redefinedModel <- regModel$Submodel
+
   if(regType == "lasso"){
-    for(matrix in 1:length(regOn)){
-      setToZero <- setToZero + sum(abs(regModel$Submodel[[regOn[matrix]]]$values[regIndicators[[matrix]]==1 & regModel$Submodel[[regOn[matrix]]]$free]) < zeroThresh)
+    ## set regularized parameters to zero if they are below the threshold:
+    if(regModel$regValue$values > 0){
+      for(matrix in regOn){
+        mat <- matrices[[matrix]]
+        if(any(abs(matrices[[matrix]]$values) < zeroThresh & matrices[[matrix]]$free & regIndicators[[matrix]] == 1)){
+          # select parameters that are below the threshold
+          selection <- abs(matrices[[matrix]]$values) < zeroThresh & matrices[[matrix]]$free & regIndicators[[matrix]] == 1
+          # set to zero
+          matrices[[matrix]]$values[selection] <- 0
+          # set as fixed
+          matrices[[matrix]]$free[selection] <- FALSE
+
+          # replace matrix in redefinedModel
+          redefinedModel <- mxModel(redefinedModel, matrices[[matrix]])
+        }
+      }
     }
   }
-  newEstimated <- estimated - setToZero
-  return(newEstimated)
+
+  # get estimated parameters:
+  estimatedParameters <- 0
+  for(matrix in matrices){
+    if(any(!is.na(matrix$labels))){
+      # elements without labels that are free:
+      sum1 <- sum(is.na(matrix$labels)&& matrix$free)
+      # unique elements with labels that are free
+      sum2 <- length(unique(matrix$labels[matrix$free]))
+      estimatedParameters <- estimatedParameters + sum1 + sum2
+    }else{
+      estimatedParameters <- estimatedParameters + sum(matrix$free)
+    }
+
+  }
+
+  return(list("redefinedModel" = redefinedModel, "estimatedParameters" = estimatedParameters))
 }

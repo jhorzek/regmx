@@ -14,7 +14,7 @@ regModel(mxModelObject, regType = "lasso", regOn, regIndicators,
 
 \item{regOn}{string vector with matrices that should be regularized.}
 
-\item{regIndicators}{list of matrices indicating which parameters to regularize in the matrices provided in regOn. Has to be in the same order as regOn. 1 Indicates a parameter that will be regularized, 0 an unregularized parameter}
+\item{regIndicators}{list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators have to havve the same names as the matrices the correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter}
 
 \item{regValue}{numeric value of penalty size}
 }

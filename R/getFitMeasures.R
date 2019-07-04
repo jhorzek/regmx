@@ -13,7 +13,7 @@ getFitMeasures <- function (regModel, regType, regOn, regIndicators, cvSample = 
 
   return_value$estimated_params <- getEstimatedParameters(regModel = regModel, regType = regType,
                                                           regOn = regOn, regIndicators = regIndicators,
-                                                          zeroThresh = zeroThresh)
+                                                          zeroThresh = zeroThresh)$estimatedParameters
 
   ### compute Fit Indices:
 

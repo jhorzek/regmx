@@ -7,7 +7,7 @@
 #' @param regType so far only "lasso" and "ridge" implemented
 #' @param regValue numeric value of penalty size
 #' @param regOn string vector with matrices that should be regularized.
-#' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. Has to be in the same order as regOn. 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
+#' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators have to havve the same names as the matrices the correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
 #'
 #' @examples
 #' # The following example is taken from the regsem help to demonstrate the equivalence of both methods:
@@ -59,27 +59,30 @@ regModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators, reg
 
   ### model Type
   if(!class(mxModelObject)[1] == "MxRAMModel"){
-    Stop("Provided mxModelObject is not of type MxRAMModel")
+    stop("Provided mxModelObject is not of type MxRAMModel")
   }
   ### regOn
   for(matrixName in regOn) {
     if(!matrixName %in% names(mxModelObject)){
       stop(paste("Matrix ", matrixName, " provided in regOn was not found in the provided regModel", sep = ""))
     }
+    if(!matrixName %in% names(regIndicators)){
+      stop(paste("Matrix ", matrixName, " provided in regOn was not found in the regIndicator list.", sep = ""))
+    }
   }
 
   ### matrix dimensions
-  for(matrix in 1:length(regOn)){
-    if(nrow(mxModelObject[[regOn[matrix]]]$values) == nrow(regIndicators[[matrix]]) &
-       ncol(mxModelObject[[regOn[matrix]]]$values) == ncol(regIndicators[[matrix]])){}else{
-         stop("Dimensions of Matrix ", regOn[matrix], " and provided regIndicator with index ", matrix, " do not match.", sep = "")
+  for(matrix in regOn){
+    if(nrow(mxModelObject[[matrix]]$values) == nrow(regIndicators[[matrix]]) &
+       ncol(mxModelObject[[matrix]]$values) == ncol(regIndicators[[matrix]])){}else{
+         stop("Dimensions of Matrix ", regOn[[matrix]], " and provided regIndicator with index ", matrix, " do not match.", sep = "")
        }
   }
 
   ## get number of observations:
-    if(mxModelObject$data$type == "raw")
+    if(mxModelObject$data$type == "raw"){
       numObs <- nrow(mxModelObject$data$observed)
-    else if (mxModelObject$data$type == "cov"){
+      }else if (mxModelObject$data$type == "cov"){
       numObs <- mxModelObject$data$numObs
     }else{
       stop("Could not extract the number of observations from the mxModelObject provided")
@@ -111,27 +114,27 @@ regModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators, reg
     names(mxRegFunctions) <- paste("penaltyOn",regOn, sep ="")
 
     # iterate through the matrices that should be regularized:
-    for (matrix in 1:length(regOn)){
+    for (matrix in regOn){
 
       # create mxAlgebra:
-      mxRegIndicators[[matrix]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name =names(mxRegIndicators[matrix]))
+      mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name =names(mxRegIndicators[paste("selected",matrix, "Values", sep ="")]))
 
       if(regType == "lasso"){
-      regularizationString <- paste("numObs*(regValue*(t(abs(cvectorize(Submodel.",regOn[matrix],"))) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")}else if(
+      regularizationString <- paste("numObs*(regValue*(t(abs(cvectorize(Submodel.",matrix,"))) %*% cvectorize(selected",matrix,"Values)))", sep = "")}else if(
         regType == "ridge"
       ){
-        regularizationString <- paste("numObs*(regValue*(t((cvectorize(Submodel.",regOn[matrix],"^2))) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")
+        regularizationString <- paste("numObs*(regValue*(t((cvectorize(Submodel.",matrix,"^2))) %*% cvectorize(selected",matrix,"Values)))", sep = "")
       }
-      mxRegFunctions[[matrix]] <- mxAlgebraFromString(algString = regularizationString, name = names(mxRegFunctions[matrix]))
+      mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]] <- mxAlgebraFromString(algString = regularizationString, name = paste("penaltyOn",matrix, sep =""))
 
       # Add mxRegIndicator and mxRegFunction to the model:
       outModel <- mxModel(outModel,
-                          mxRegIndicators[[matrix]],
-                          mxRegFunctions[[matrix]]
+                          mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]],
+                          mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]]
       )
 
       # expand the fitting function:
-      fitfun_string <- paste(fitfun_string,names(mxRegFunctions[matrix]), sep = " + ")
+      fitfun_string <- paste(fitfun_string,names(mxRegFunctions[paste("penaltyOn",matrix, sep ="")]), sep = " + ")
 
     }
 

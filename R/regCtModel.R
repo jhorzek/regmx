@@ -17,23 +17,27 @@ regCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndicators
     if(!matrixName %in% names(mxModelObject)){
       stop(paste("Matrix ", matrixName, " provided in regOn was not found in the provided regModel", sep = ""))
     }
+    if(!matrixName %in% names(regIndicators)){
+      stop(paste("Matrix ", matrixName, " provided in regOn was not found in the regIndicator list.", sep = ""))
+    }
   }
 
   ### matrix dimensions
-  for(matrix in 1:length(regOn)){
-    if(nrow(mxModelObject[[regOn[matrix]]]$values) == nrow(regIndicators[[matrix]]) &
-       ncol(mxModelObject[[regOn[matrix]]]$values) == ncol(regIndicators[[matrix]])){}else{
-         stop("Dimensions of Matrix ", regOn[matrix], " and provided regIndicator with index ", matrix, " do not match.", sep = "")
+  for(matrix in regOn){
+    if(nrow(mxModelObject[[matrix]]$values) == nrow(regIndicators[[matrix]]) &
+       ncol(mxModelObject[[matrix]]$values) == ncol(regIndicators[[matrix]])){}else{
+         stop("Dimensions of Matrix ", regOn[[matrix]], " and provided regIndicator with index ", matrix, " do not match.", sep = "")
        }
   }
 
+
   ## get number of observations:
-  if(mxModelObject$data$type == "raw")
+  if(mxModelObject$data$type == "raw"){
     numObs <- nrow(mxModelObject$data$observed)
-  else if (mxModelObject$data$type == "cov"){
+  }else if (mxModelObject$data$type == "cov"){
     numObs <- mxModelObject$data$numObs
   }else{
-    stop("Could not extract the number of observations from the ctsemModelObject provided")
+    stop("Could not extract the number of observations from the mxModelObject provided")
   }
 
   mxNumObs <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = numObs,name = "numObs") # define numObs as mxMatrix
@@ -62,19 +66,19 @@ regCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndicators
   names(mxRegFunctions) <- paste("penaltyOn",regOn, sep ="")
 
   # iterate through the matrices that should be regularized:
-  for (matrix in 1:length(regOn)){
+  for (matrix in regOn){
 
     # create mxAlgebra:
-    mxRegIndicators[[matrix]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name =names(mxRegIndicators[matrix]))
+    mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name = names(mxRegIndicators[paste("selected",matrix, "Values", sep ="")]))
 
-    if(link[[matrix]] == "exp"){
+    if(link[[matrix]] == "expm"){
       dt_count = 1
-      matrix_regstring <- rep(NA, length(dt[[matrix]]))
-      for (dt in dt[[matrix]]){
+      matrix_regstring <- rep(NA, length(t))
+      for (t in dt){
         if(regType == "lasso"){
-          matrix_regstring[dt_count] <- paste("numObs*(regValue*(t(abs(cvectorize(expm(Submodel.",regOn[matrix],"*",dt[matrix],")))) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")
+          matrix_regstring[dt_count] <- paste("numObs*(regValue*(t(abs(cvectorize(expm(Submodel.",matrix,"*",t,")))) %*% cvectorize(selected",matrix,"Values)))", sep = "")
           }else if(regType == "ridge"){
-            matrix_regstring[dt_count] <- paste("numObs*(regValue*(t(cvectorize(expm((Submodel.",regOn[matrix],"*",dt[matrix],")^2))) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")
+            matrix_regstring[dt_count] <- paste("numObs*(regValue*(t(cvectorize(expm((Submodel.",matrix,"*",t,")^2))) %*% cvectorize(selected",matrix,"Values)))", sep = "")
           }
         dt_count <- dt_count+1
       }
@@ -85,30 +89,25 @@ regCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndicators
       # link provided by user as string
       userlink <- link[[matrix]]
 
-      dt_count = 1
-      matrix_regstring <- rep(NA, length(dt[[matrix]]))
-      for (dt in dt[[matrix]]){
         if(regType == "lasso"){
-          matrix_regstring[dt_count] <- paste("numObs*(regValue*(t(abs(cvectorize(",userlink,"(Submodel.",regOn[matrix],"*",dt[matrix],")))) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")
+          matrix_regstring <- paste("numObs*(regValue*(t(abs(cvectorize(",userlink,")))%*% cvectorize(selected",matrix,"Values)))", sep = "")
           }else if(regType == "ridge"){
-            matrix_regstring[dt_count] <- paste("numObs*(regValue*(t(cvectorize(",userlink,"((Submodel.",regOn[matrix],"*",dt[matrix],")^2))) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")
-      }
-      dt_count <- dt_count+1
+            matrix_regstring <- paste("numObs*(regValue*(t(cvectorize(",userlink,")^2)) %*% cvectorize(selected",matrix,"Values)))", sep = "")
       }
     }
 
       comb_matrix_regstring <- paste(matrix_regstring, collapse = "+")
 
-      mxRegFunctions[[matrix]] <- mxAlgebraFromString(algString = comb_matrix_regstring, name = names(mxRegFunctions[matrix]))
+      mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]] <- mxAlgebraFromString(algString = comb_matrix_regstring, name = paste("penaltyOn",matrix, sep =""))
 
     # Add mxRegIndicator and mxRegFunction to the model:
     outModel <- mxModel(outModel,
-                        mxRegIndicators[[matrix]],
-                        mxRegFunctions[[matrix]]
+                        mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]],
+                        mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]]
     )
 
     # expand the fitting function:
-    fitfun_string <- paste(fitfun_string,names(mxRegFunctions[matrix]), sep = " + ")
+    fitfun_string <- paste(fitfun_string,names(mxRegFunctions[paste("penaltyOn",matrix, sep ="")]), sep = " + ")
 
   }
 
