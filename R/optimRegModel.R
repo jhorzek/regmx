@@ -53,13 +53,14 @@ optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators
 
       results["convergence",counter] <- fit_reg_Model$output$status$code# check convergence
 
+      if("S" %in% names(fit_reg_Model$Submodel)){
       variances = diag(nrow(fit_reg_Model$Submodel$S$values))==1
 
       if(any(fit_reg_Model$Submodel$S$values[variances] <0)){
         results["negative variances",counter] <- 1 # check negative variances
       }else(
         results["negative variances",counter] <- 0
-      )
+      )}
 
       ### compute AIC and BIC:
       FitM <- getFitMeasures(regModel = fit_reg_Model, regType = regType, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
@@ -146,7 +147,8 @@ optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators
       Folds <- split(sample(subjects, length(subjects),replace=FALSE), f = as.factor(1:k))
     }
     if(Boot){
-      subjects <- 1:nrow(mxModelObject$data$observed)
+      stop("Bootstrap not yet implemented")
+        subjects <- 1:nrow(mxModelObject$data$observed)
       Folds <- vector("list", length = k)
       for(Fold in 1:k){
         Folds[[Fold]] <- sample(subjects, length(subjects),replace=TRUE)
@@ -202,7 +204,10 @@ optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators
     best_penalty <- Res_final[which(Res_final[,"mean CV/Boot_m2LL"] == min(Res_final[,"mean CV/Boot_m2LL"])), "penalty"]
 
     # fit best penalty model with full data set:
-
+    if(scaleCV){
+      scale_full_raw_data <- scale(full_raw_data)
+      mxModelObject$data <- mxData(observed = scale_full_raw_data, type = "raw")
+    }
     finalModel <- regModel(mxModelObject = mxModelObject, regType = regType,
                            regOn = regOn, regIndicators = regIndicators,
                            regValue = best_penalty)

@@ -120,7 +120,7 @@ regModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators, reg
       regularizationString <- paste("numObs*(regValue*(t(abs(cvectorize(Submodel.",regOn[matrix],"))) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")}else if(
         regType == "ridge"
       ){
-        regularizationString <- paste("numObs*(regValue*(t((cvectorize(Submodel.",regOn[matrix],")^2)) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")
+        regularizationString <- paste("numObs*(regValue*(t((cvectorize(Submodel.",regOn[matrix],"^2))) %*% cvectorize(",names(mxRegIndicators[matrix]),")))", sep = "")
       }
       mxRegFunctions[[matrix]] <- mxAlgebraFromString(algString = regularizationString, name = names(mxRegFunctions[matrix]))
 

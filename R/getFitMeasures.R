@@ -18,7 +18,7 @@ getFitMeasures <- function (regModel, regType, regOn, regIndicators, cvSample = 
   ### compute Fit Indices:
 
   # get -2LogL:
-  if(mxModelObject$data$type == "cov"){
+  if(regModel$Submodel$data$type == "cov"){
     ExpCov <- mxGetExpected(regModel$Submodel, "covariance")
     ExpMean <- mxGetExpected(regModel$Submodel, "means")
 
@@ -31,7 +31,7 @@ getFitMeasures <- function (regModel, regType, regOn, regIndicators, cvSample = 
 
     return_value$m2LL <- getM2LogL_cov(ExpCov = ExpCov, ObsCov = ObsCov, NObs = NObs, NManif = NManif)
 
-  }else if(mxModelObject$data$type == "raw"){
+  }else if(regModel$Submodel$data$type == "raw"){
     # get the expected covariance/means
     ExpCov <- mxGetExpected(regModel$Submodel, "covariance")
     ExpMean <- mxGetExpected(regModel$Submodel, "means")
@@ -42,7 +42,7 @@ getFitMeasures <- function (regModel, regType, regOn, regIndicators, cvSample = 
     # compute the m2LogL:
     return_value$m2LL <- getM2LogL_FIML(ExpCov = ExpCov, ExpMean = ExpMean, ObsData = ObsData)
   } else{
-    stop(paste("Error: Unknown data type: ", mxModelObject$data$type))
+    stop(paste("Error: Unknown data type: ", regModel$Submodel$data$type))
   }
 
 
@@ -60,7 +60,7 @@ getFitMeasures <- function (regModel, regType, regOn, regIndicators, cvSample = 
       stop("Provided cvSample data set is not an mxData file.")
     }
 
-    if(mxModelObject$data$type == "cov"){
+    if(regModel$Submodel$data$type == "cov"){
       if(!cvSample$type == "cov"){
         stop("Provided cvSample data set is not of the same type as the training set.")
       }
@@ -76,7 +76,7 @@ getFitMeasures <- function (regModel, regType, regOn, regIndicators, cvSample = 
 
       return_value$CV.m2LL <- getM2LogL_cov(ExpCov = ExpCov, ObsCov = ObsCov, NObs = NObs, NManif = NManif)
 
-    }else if(mxModelObject$data$type == "raw"){
+    }else if(regModel$Submodel$data$type == "raw"){
       if(!cvSample$type == "raw"){
         stop("Provided cvSample data set is not of the same type as the training set.")
       }
