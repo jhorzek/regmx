@@ -2,5 +2,9 @@
 
 export(getM2LogL_FIML)
 export(getM2LogL_cov)
+export(optimRegCtModel)
+export(optimRegModel)
+export(regCtModel)
 export(regModel)
 import(OpenMx)
+import(ctsem)

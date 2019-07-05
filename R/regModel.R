@@ -3,14 +3,14 @@
 #' Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
 #' regModel creates a regularized model from an mxModel.
 #'
-#' @param mxModelObject run mxModel
+#' @param mxModelObject an already run mxModel
 #' @param regType so far only "lasso" and "ridge" implemented
-#' @param regValue numeric value of penalty size
-#' @param regOn string vector with matrices that should be regularized.
-#' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators have to havve the same names as the matrices the correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
+#' @param regValue numeric value depicting the penalty size
+#' @param regOn string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")
+#' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
 #'
 #' @examples
-#' # The following example is taken from the regsem help to demonstrate the equivalence of both methods:
+#' # The following example is adapted from the regsem help to demonstrate the equivalence of both methods:
 #'
 #' library(lavaan)
 #' library(OpenMx)
@@ -33,20 +33,29 @@
 #' )
 #'
 #' fit_myModel <- mxRun(myModel)
+#'
+#' # Show the names of the matrices in the model:
+#' names(fit_myModel$matrices)
+#' # Show the values of the directional paths:
 #' round(fit_myModel$A$values,5)
 #'
-#' # create regularized model:
+#' # Penalize specific parameters from the A matrix (directional paths):
+#' regOn <- c("A")
 #'
 #' selectedA <- matrix(0, ncol = ncol(fit_myModel$A$values), nrow = nrow(fit_myModel$A$values))
-#' selectedA[c(2,3,7,8,9),10] <-1
-#' regIndicators <- list("selectedA" = selectedA)
+#' selectedA[c(2,3,7,8,9),10] <-1 # parameters that should be regularized have to be marked with 1
+#' regIndicators <- list("A" = selectedA) # save in a list. Note the naming of the list element
 #'
+#' # size of the penalty:
+#' regValue = .2
 #'
-#' reg_model <- regModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = "A", regValue = .05
-#' )
+#' reg_model <- regModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = c("A"), regIndicators = regIndicators, regValue = regValue)
 #' fit_reg_model <- mxRun(reg_model)
 #'
-#' round(fit_reg_model$BaseModel$A$values,5)
+#' # extract the A matrix
+#' round(fit_reg_model$Submodel$A$values,5) # Note: the values are stored in the Submodel
+#' # Compare to unregularized parameter values:
+#' round(fit_myModel$A$values,5)
 #'
 #' @author Jannik Orzek
 #' @import OpenMx

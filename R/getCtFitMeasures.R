@@ -31,13 +31,13 @@ getCtFitMeasures <- function (regCtModel, regType, regOn, regIndicators, cvSampl
 
   #### if Cross -Validation is used ####
   ## CV m2LL
-  if( !is.null(cvSample) ){ # if cvsample (as mxData) is provided:
+  if( !is.null(cvSample) ){ # if cvSample (as mxData) is provided:
     if(!class(cvSample) == "MxDataStatic"){
       stop("Provided cvSample data set is not an mxData file.")
     }
 
     CVModel <- regCtModel$Submodel
-    CVModel$data <- cvsample
+    CVModel$data <- cvSample
     fit_CVModel <- mxRun(CVModel, useOptimizer = F, silent = T)
     return_value$CV.m2LL <- fit_CVModel$fitfunction$result[[1]]
 
