@@ -295,7 +295,7 @@ optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators
 
     ffinalModel <- mxRun(finalModel, silent = T)
 
-    ret <- list("CV results" = Res, "final Model" = ffinalModel, "best penalty" = best_penalty, "k" = k)
+    ret <- list("CV results" = Res, "final Model" = ffinalModel, "best penalty" = best_penalty, "k" = k, "call" = call)
     class(ret) <- "CvOptimRegModelObject"
 
     return(ret)

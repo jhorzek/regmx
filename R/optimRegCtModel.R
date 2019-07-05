@@ -237,7 +237,7 @@ optimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndic
       fit_reg_CtModel_CVm2LL <- mxRun(reg_CtModel_CVm2LL, silent = T)
       out <- list("best penalty" = reg_CtModel_CVm2LL, "bestmodel" = fit_reg_CtModel_CVm2LL, "fit measures" = t(results), "call" = call)
     }
-    class(out) <- "OptimRegModelObject"
+    class(out) <- "OptimRegCtModelObject"
 
     return(out)
 
@@ -324,8 +324,8 @@ optimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndic
 
     ffinalModel <- mxRun(finalModel, silent = T)
 
-    ret <- list("CV results" = Res, "final Model" = ffinalModel, "best penalty" = best_penalty, "k" = k)
-    class(ret) <- "CVlaremm"
+    ret <- list("CV results" = Res, "final Model" = ffinalModel, "best penalty" = best_penalty, "k" = k, "call" = call)
+    class(ret) <- "CvOptimRegCtModelObject"
 
     return(ret)
 
