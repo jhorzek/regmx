@@ -82,7 +82,7 @@ regIndicators <- list("A" = selectedA) # save in a list. Note the naming of the 
 
 # Run the models:
 
-reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators)
+reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators, cores = 2)
 
 reg_model$`fit measures`
 
@@ -91,7 +91,7 @@ reg_model$`best penalty`
 # Run the same model with 5-fold cross-validation
 
 CV_reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators,
-                              autoCV = T, k = 5)
+                              autoCV = T, k = 5, cores = 2)
 CV_reg_model$`CV results`
 
 }

@@ -1,3 +1,15 @@
+#' getEstimatedParameters
+#'
+#' Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
+#'
+#' computes number of estimated parameters
+#' @author Jannik Orzek
+#' @import OpenMx
+#' @examples
+#'
+#' @export
+#'
+
 getEstimatedParameters <- function(regModel, regType, regOn, regIndicators, zeroThresh){
   matrices <- regModel$Submodel$matrices
 

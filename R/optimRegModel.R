@@ -77,7 +77,7 @@ optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators
                           regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
                           criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
-  if(core == 1){
+  if(cores == 1){
 
     ret <- SingleCoreOptimRegModel(mxModelObject = mxModelObject, regType = regType, regOn = regOn, regIndicators = regIndicators,
                                                regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,

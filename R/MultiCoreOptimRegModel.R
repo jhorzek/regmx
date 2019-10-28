@@ -56,7 +56,7 @@
 #'
 #' # Run the models:
 #'
-#' reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators)
+#' reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators, cores = 2)
 #'
 #' reg_model$`fit measures`
 #'
@@ -65,7 +65,7 @@
 #' # Run the same model with 5-fold cross-validation
 #'
 #' CV_reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators,
-#'                               autoCV = T, k = 5)
+#'                               autoCV = T, k = 5, cores = 2)
 #' CV_reg_model$`CV results`
 #'
 #' @author Jannik Orzek
@@ -73,8 +73,8 @@
 #' @export
 
 MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators,
-                                    regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
-                                    criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
+                                   regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
+                                   criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
   # save call:
   call <- mget(names(formals()),sys.frame(sys.nframe()))
@@ -133,53 +133,51 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
   regValues = seq(from = regValue_start, to = regValue_end, by = regValue_stepsize)
 
   if (!autoCV & !Boot){
-    results <- matrix(NA, nrow = 8, ncol = 1)
-    rownames(results) <- c("penalty", "estimated Parameters", "m2LL","AIC",
-                           "BIC", "CV.m2LL", "negative variances","convergence")
-
 
     # iterate over regValues:
     ParRes <- foreach(regValue = regValues, .combine = "cbind",.packages = c("OpenMx","regmx"),
                       .inorder = FALSE,
                       .errorhandling = "stop",
                       .verbose = TRUE) %dopar% {
-      results["penalty",1] <- regValue
-      reg_Model <- regModel(mxModelObject = mxModelObject,
-                            regType = regType, regOn = regOn,
-                            regIndicators = regIndicators, regValue = regValue)
+                        results <- matrix(NA, nrow = 8, ncol = 1)
+                        rownames(results) <- c("penalty", "estimated Parameters", "m2LL","AIC",
+                                               "BIC", "CV.m2LL", "negative variances","convergence")
+                        results["penalty",1] <- regValue
+                        reg_Model <- regModel(mxModelObject = mxModelObject,
+                                              regType = regType, regOn = regOn,
+                                              regIndicators = regIndicators, regValue = regValue)
 
-      reg_Model <- mxOption(reg_Model, "Calculate Hessian", "No") # might cause errors; check
-      reg_Model <- mxOption(reg_Model, "Standard Errors", "No") # might cause errors; check
-      fit_reg_Model <- mxRun(reg_Model, silent = T) # run Model; starting values can be very critical as the model tends to get stuck in local minima either close to the model parameters without penalty or all parameters set to 0
+                        reg_Model <- mxOption(reg_Model, "Calculate Hessian", "No") # might cause errors; check
+                        reg_Model <- mxOption(reg_Model, "Standard Errors", "No") # might cause errors; check
+                        fit_reg_Model <- mxRun(reg_Model, silent = T) # run Model; starting values can be very critical as the model tends to get stuck in local minima either close to the model parameters without penalty or all parameters set to 0
 
-      results["convergence",1] <- fit_reg_Model$output$status$code# check convergence
+                        results["convergence",1] <- fit_reg_Model$output$status$code# check convergence
 
-      if("S" %in% names(fit_reg_Model$Submodel)){
-        variances = diag(nrow(fit_reg_Model$Submodel$S$values))==1
+                        if("S" %in% names(fit_reg_Model$Submodel)){
+                          variances = diag(nrow(fit_reg_Model$Submodel$S$values))==1
 
-        if(any(fit_reg_Model$Submodel$S$values[variances] <0)){
-          results["negative variances",1] <- 1 # check negative variances
-        }else(
-          results["negative variances",1] <- 0
-        )}
+                          if(any(fit_reg_Model$Submodel$S$values[variances] <0)){
+                            results["negative variances",1] <- 1 # check negative variances
+                          }else(
+                            results["negative variances",1] <- 0
+                          )}
 
-      ### compute AIC and BIC:
-      FitM <- getFitMeasures(regModel = fit_reg_Model, regType = regType, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
+                        ### compute AIC and BIC:
+                        FitM <- getFitMeasures(regModel = fit_reg_Model, regType = regType, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
 
-      results["estimated Parameters",1] <- FitM$estimated_params # estimated parameters
-      results["m2LL",1] <- FitM$m2LL # -2LogL
-      results["AIC",1] <- FitM$AIC # AIC
-      results["BIC",1] <- FitM$BIC # BIC
-      results["CV.m2LL",1] <- FitM$CV.m2LL # CV.m2LL
+                        results["estimated Parameters",1] <- FitM$estimated_params # estimated parameters
+                        results["m2LL",1] <- FitM$m2LL # -2LogL
+                        results["AIC",1] <- FitM$AIC # AIC
+                        results["BIC",1] <- FitM$BIC # BIC
+                        results["CV.m2LL",1] <- FitM$CV.m2LL # CV.m2LL
 
-      # foreach expects a vector:
-      results <- as.vector(results)
-    }
+                        # foreach expects a vector:
+                        results <- as.vector(results)
+                      }
 
 
-    stopCluster(cl)
     rownames(ParRes) <- c("penalty", "estimated Parameters", "m2LL","AIC",
-                           "BIC", "CV.m2LL", "negative variances","convergence")
+                          "BIC", "CV.m2LL", "negative variances","convergence")
 
     results <- ParRes
     # Find Minima / best penalty value
@@ -235,6 +233,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
       fit_reg_Model_CVm2LL <- mxRun(reg_Model_CVm2LL, silent = T)
       out <- list("best penalty" = minimum_CV.m2LL, "bestmodel" = fit_reg_Model_CVm2LL, "fit measures" = t(results), "call" = call)
     }
+    stopCluster(cl)
     class(out) <- "OptimRegModelObject"
     return(out)
 
@@ -289,7 +288,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
                                       regValue_stepsize = regValue_stepsize,
                                       criterion = "CV.m2LL", autoCV = FALSE,
                                       Boot = FALSE, manualCV = Test_Sample,
-                                      k = 5, zeroThresh = zeroThresh, scaleCV = scaleCV)
+                                      k = 5, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
 
       Res[,paste("fold", fold)] <- fit_trainModel$`fit measures`[,'CV.m2LL']
       Res[,"negative variances"] <- Res[,"negative variances"] + fit_trainModel$`fit measures`[,'negative variances']

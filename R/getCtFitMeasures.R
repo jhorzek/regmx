@@ -1,5 +1,14 @@
 #' getCtFitMeasures
 #'
+#' Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
+#'
+#' computes multiple fit measures
+#' @author Jannik Orzek
+#' @import OpenMx
+#' @examples
+#'
+#' @export
+#'
 getCtFitMeasures <- function (regCtModel, regType, regOn, regIndicators, cvSample = NULL, zeroThresh = .001){
 
   # define return value:
