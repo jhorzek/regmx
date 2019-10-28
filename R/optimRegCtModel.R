@@ -235,7 +235,7 @@ optimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndic
       reg_CtModel_CVm2LL <- mxOption(reg_CtModel_CVm2LL, "Standard Errors", "No") # might cause errors; check
 
       fit_reg_CtModel_CVm2LL <- mxRun(reg_CtModel_CVm2LL, silent = T)
-      out <- list("best penalty" = reg_CtModel_CVm2LL, "bestmodel" = fit_reg_CtModel_CVm2LL, "fit measures" = t(results), "call" = call)
+      out <- list("best penalty" =minimum_CV.m2LL, "bestmodel" = fit_reg_CtModel_CVm2LL, "fit measures" = t(results), "call" = call)
     }
     class(out) <- "OptimRegCtModelObject"
 
@@ -292,7 +292,7 @@ optimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndic
       fit_trainModel <- optimRegCtModel(ctsemModelObject = trainModel, regType = regType, regOn = regOn, regIndicators = regIndicators,
                                     link = link, dt = dt,
                                     regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,
-                                    criterion = criterion, autoCV = FALSE, Boot = FALSE, manualCV = Test_Sample, k = 5, zeroThresh = zeroThresh, scaleCV = scaleCV)
+                                    criterion = "CV.m2LL", autoCV = FALSE, Boot = FALSE, manualCV = Test_Sample, k = 5, zeroThresh = zeroThresh, scaleCV = scaleCV)
 
       Res[,paste("fold", fold)] <- fit_trainModel$`fit measures`[,'CV.m2LL']
       Res[,"negative variances"] <- Res[,"negative variances"] + fit_trainModel$`fit measures`[,'negative variances']

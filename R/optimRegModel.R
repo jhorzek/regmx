@@ -86,9 +86,9 @@ optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators
   ### fitfunction:
 
   ### model Type
-  if(!class(mxModelObject)[1] == "MxRAMModel"){
-    stop("Provided mxModelObject is not of type MxRAMModel")
-  }
+  #if(!class(mxModelObject)[1] == "MxRAMModel"){
+  #  stop("Provided mxModelObject is not of type MxRAMModel")
+  #}
   ### regOn
   for(matrixName in regOn) {
     if(!matrixName %in% names(mxModelObject)){
@@ -207,7 +207,7 @@ optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators
       reg_Model_CVm2LL <- mxOption(reg_Model_CVm2LL, "Standard Errors", "No") # might cause errors; check
 
       fit_reg_Model_CVm2LL <- mxRun(reg_Model_CVm2LL, silent = T)
-      out <- list("best penalty" = reg_Model_CVm2LL, "bestmodel" = fit_reg_Model_CVm2LL, "fit measures" = t(results), "call" = call)
+      out <- list("best penalty" = minimum_CV.m2LL, "bestmodel" = fit_reg_Model_CVm2LL, "fit measures" = t(results), "call" = call)
     }
     class(out) <- "OptimRegModelObject"
 
@@ -262,7 +262,7 @@ optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators
                                   regValue_start = regValue_start,
                                   regValue_end = regValue_end,
                                   regValue_stepsize = regValue_stepsize,
-                                  criterion = criterion, autoCV = FALSE,
+                                  criterion = "CV.m2LL", autoCV = FALSE,
                                   Boot = FALSE, manualCV = Test_Sample,
                                   k = 5, zeroThresh = zeroThresh, scaleCV = scaleCV)
 

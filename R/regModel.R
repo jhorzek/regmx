@@ -67,9 +67,9 @@ regModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators, reg
   ### fitfunction:
 
   ### model Type
-  if(!class(mxModelObject)[1] == "MxRAMModel"){
-    stop("Provided mxModelObject is not of type MxRAMModel")
-  }
+  #if(!class(mxModelObject)[1] == "MxRAMModel"){
+  #  stop("Provided mxModelObject is not of type MxRAMModel")
+  #}
   ### regOn
   for(matrixName in regOn) {
     if(!matrixName %in% names(mxModelObject)){
