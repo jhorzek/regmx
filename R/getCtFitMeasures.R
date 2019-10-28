@@ -1,3 +1,5 @@
+#' getCtFitMeasures
+#'
 getCtFitMeasures <- function (regCtModel, regType, regOn, regIndicators, cvSample = NULL, zeroThresh = .001){
 
   # define return value:
