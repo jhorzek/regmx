@@ -88,7 +88,7 @@
 #' expm(CV_myRegCtModel$`final Model`$Submodel$DRIFT$values)
 #'
 #' @author Jannik Orzek
-#' @import OpenMx ctsem
+#' @import OpenMx ctsem doParallel
 #' @export
 
 MultiCoreOptimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndicators,

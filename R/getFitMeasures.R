@@ -9,7 +9,7 @@
 #'
 #' @export
 #'
-getFitMeasures <- function (regModel, regType, regOn, regIndicators, cvSample = NULL, zeroThresh = .001){
+getFitMeasures <- function (regModel, alpha, gamma, regOn, regIndicators, cvSample = NULL, zeroThresh = .001){
 
   # define return value:
   return_value <- data.frame("estimated_params" = NA,
@@ -22,7 +22,7 @@ getFitMeasures <- function (regModel, regType, regOn, regIndicators, cvSample = 
 
   # get the number of estimated parameters:
 
-  return_value$estimated_params <- getEstimatedParameters(regModel = regModel, regType = regType,
+  return_value$estimated_params <- getEstimatedParameters(regModel = regModel, alpha, gamma,
                                                           regOn = regOn, regIndicators = regIndicators,
                                                           zeroThresh = zeroThresh)$estimatedParameters
 

@@ -4,7 +4,8 @@
 \alias{getEstimatedParameters}
 \title{getEstimatedParameters}
 \usage{
-getEstimatedParameters(regModel, regType, regOn, regIndicators, zeroThresh)
+getEstimatedParameters(regModel, alpha, gamma, regOn, regIndicators,
+  zeroThresh)
 }
 \description{
 Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!

@@ -4,7 +4,8 @@
 #' optimRegModel creates a range of regularized models from an mxModel. It automatically tests different penalty values and returns the best model
 #'
 #' @param mxModelObject an already run mxModel
-#' @param regType so far only "lasso" and "ridge" implemented
+#' @param alpha alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization
+#' @param gamma gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.
 #' @param regValue numeric value depicting the penalty size
 #' @param regOn string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")
 #' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
@@ -57,7 +58,7 @@
 #'
 #' # Run the models:
 #'
-#' reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators)
+#' reg_model <- optimRegModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = regOn, regIndicators = regIndicators)
 #'
 #' reg_model$`fit measures`
 #'
@@ -65,7 +66,7 @@
 #'
 #' # Run the same model with 5-fold cross-validation
 #'
-#' CV_reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators,
+#' CV_reg_model <- optimRegModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = regOn, regIndicators = regIndicators,
 #'                               autoCV = T, k = 5)
 #' CV_reg_model$`CV results`
 #'
@@ -73,17 +74,17 @@
 #' @import OpenMx
 #' @export
 
-optimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators,
+optimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
                           regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
                           criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
   if(cores == 1){
 
-    ret <- SingleCoreOptimRegModel(mxModelObject = mxModelObject, regType = regType, regOn = regOn, regIndicators = regIndicators,
+    ret <- SingleCoreOptimRegModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators,
                                                regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,
                                                criterion = criterion, autoCV = autoCV, k = k, Boot = Boot, manualCV = manualCV, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
   }else{
-    ret <- MultiCoreOptimRegModel(mxModelObject = mxModelObject, regType = regType, regOn = regOn, regIndicators = regIndicators,
+    ret <- MultiCoreOptimRegModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators,
                                    regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,
                                    criterion = criterion, autoCV = autoCV, k = k, Boot = Boot, manualCV = manualCV, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
 

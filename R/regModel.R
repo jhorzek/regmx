@@ -4,7 +4,8 @@
 #' regModel creates a regularized model from an mxModel.
 #'
 #' @param mxModelObject an already run mxModel
-#' @param regType so far only "lasso" and "ridge" implemented
+#' @param alpha alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization
+#' @param gamma gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.
 #' @param regValue numeric value depicting the penalty size
 #' @param regOn string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")
 #' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
@@ -49,7 +50,8 @@
 #' # size of the penalty:
 #' regValue = .2
 #'
-#' reg_model <- regModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = c("A"), regIndicators = regIndicators, regValue = regValue)
+#' # implement lasso regularization:
+#' reg_model <- regModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = c("A"), regIndicators = regIndicators, regValue = regValue)
 #' fit_reg_model <- mxRun(reg_model)
 #'
 #' # extract the A matrix
@@ -61,7 +63,7 @@
 #' @import OpenMx
 #' @export
 
-regModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators, regValue = 0){
+regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, regValue = 0){
 
   ## Checks
   ### fitfunction:
@@ -89,77 +91,83 @@ regModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators, reg
   }
 
   ## get number of observations:
-    if(mxModelObject$data$type == "raw"){
-      numObs <- nrow(mxModelObject$data$observed)
-      }else if (mxModelObject$data$type == "cov"){
-      numObs <- mxModelObject$data$numObs
-    }else{
-      stop("Could not extract the number of observations from the mxModelObject provided")
-    }
+  if(mxModelObject$data$type == "raw"){
+    numObs <- nrow(mxModelObject$data$observed)
+  }else if (mxModelObject$data$type == "cov"){
+    numObs <- mxModelObject$data$numObs
+  }else{
+    stop("Could not extract the number of observations from the mxModelObject provided")
+  }
 
-    mxNumObs <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = numObs,name = "numObs") # define numObs as mxMatrix
+  mxNumObs <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = numObs,name = "numObs") # define numObs as mxMatrix
 
-    # create mxMatrix from regValue:
-    mxRegValue <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = regValue,name = "regValue") # define peanlty value
+  # create mxMatrix from regValue:
+  mxRegValue <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = regValue,name = "regValue") # define peanlty value
 
-    # Define provided mxModelObject as submodel
-    Submodel <- mxModel(mxModelObject, name = "Submodel") # has all the parameters and the base fit function (FML or FIML)
+  # Define provided mxModelObject as submodel
+  Submodel <- mxModel(mxModelObject, name = "Submodel") # has all the parameters and the base fit function (FML or FIML)
 
-    outModel <- mxModel(model= "regmxModel", # model that is returned
-                        Submodel, # BaseModel is a submodel of outModel. The elements of BaseModel can be accessed by the outModel
-                        mxNumObs,
-                        mxRegValue)
+  outModel <- mxModel(model= "regmxModel", # model that is returned
+                      Submodel, # BaseModel is a submodel of outModel. The elements of BaseModel can be accessed by the outModel
+                      mxNumObs,
+                      mxRegValue)
 
-    # Define the new fitting function:
+  # Define the new fitting function:
 
-    # Basis: unregularized fitting function from the provided mxModel
+  # Basis: unregularized fitting function from the provided mxModel
 
-    fitfun_string <- "Submodel.fitfunction"
+  fitfun_string <- "Submodel.fitfunction"
 
-    # list of mxMatrices:
-    mxRegIndicators <- vector("list", length = length(regOn))
-    names(mxRegIndicators) <- paste("selected",regOn, "Values", sep ="")
-    mxRegFunctions <- vector("list", length = length(regOn))
-    names(mxRegFunctions) <- paste("penaltyOn",regOn, sep ="")
+  # list of mxMatrices:
+  mxRegIndicators <- vector("list", length = length(regOn))
+  names(mxRegIndicators) <- paste("selected",regOn, "Values", sep ="")
+  mxRegFunctions <- vector("list", length = length(regOn))
+  names(mxRegFunctions) <- paste("penaltyOn",regOn, sep ="")
+  MLEEstimates <- vector("list", length = length(regOn))
+  names(MLEEstimates) <- paste("MLE",regOn, "Estimate", sep ="")
 
-    # iterate through the matrices that should be regularized:
-    for (matrix in regOn){
+  # iterate through the matrices that should be regularized:
+  for (matrix in regOn){
+    #if(!(gamma == 0)){
+    #outModel$Submodel[[matrix]]$values[regIndicators[[matrix]]] <- outModel$Submodel[[matrix]]$values[regIndicators[[matrix]]] +.000001}  #small offset in starting values
 
-      # create mxAlgebra:
-      mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name =names(mxRegIndicators[paste("selected",matrix, "Values", sep ="")]))
+    MLEEstimates[[paste("MLE",matrix, "Estimate", sep ="")]] <- mxMatrix(type = "Full", values = mxModelObject[[matrix]]$values, free = F, name =names(MLEEstimates[paste("MLE",matrix, "Estimate", sep ="")]))
 
-      if(regType == "lasso"){
-      regularizationString <- paste("numObs*(regValue*(t(abs(cvectorize(Submodel.",matrix,"))) %*% cvectorize(selected",matrix,"Values)))", sep = "")}else if(
-        regType == "ridge"
-      ){
-        regularizationString <- paste("numObs*(regValue*(t((cvectorize(Submodel.",matrix,"^2))) %*% cvectorize(selected",matrix,"Values)))", sep = "")
-      }
-      mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]] <- mxAlgebraFromString(algString = regularizationString, name = paste("penaltyOn",matrix, sep =""))
+    mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name =names(mxRegIndicators[paste("selected",matrix, "Values", sep ="")]))
+    # create mxAlgebra:
+    regularizationString <- paste("numObs*(regValue*((1-alpha)*sum(omxSelectRows(cvectorize(Submodel.",
+                                  matrix,"^2), cvectorize(selected",
+                                  matrix,"Values)))+alpha*(sum(omxSelectRows(cvectorize(abs(MLE",
+                                  matrix,"Estimate)^(-",gamma,")), cvectorize(selected",
+                                  matrix,"Values)) * omxSelectRows(cvectorize(abs(Submodel.",
+                                  matrix,")), cvectorize(selected",matrix,"Values))))))", sep = "")
+mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]] <- mxAlgebraFromString(algString = regularizationString, name = paste("penaltyOn",matrix, sep =""))
 
-      # Add mxRegIndicator and mxRegFunction to the model:
-      outModel <- mxModel(outModel,
-                          mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]],
-                          mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]]
-      )
+# Add mxRegIndicator and mxRegFunction to the model:
+outModel <- mxModel(outModel,
+                    mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]],
+                    mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]],
+                    MLEEstimates[[paste("MLE",matrix, "Estimate", sep ="")]]
+)
 
-      # expand the fitting function:
-      fitfun_string <- paste(fitfun_string,names(mxRegFunctions[paste("penaltyOn",matrix, sep ="")]), sep = " + ")
+# expand the fitting function:
+fitfun_string <- paste(fitfun_string,names(mxRegFunctions[paste("penaltyOn",matrix, sep ="")]), sep = " + ")
 
-    }
+  }
 
-    # define fitfunction:
-    regFitAlgebra <- mxAlgebraFromString(fitfun_string, name = "regFitAlgebra")
-    regFitFunction <- mxFitFunctionAlgebra("regFitAlgebra")
+  # define fitfunction:
+  regFitAlgebra <- mxAlgebraFromString(fitfun_string, name = "regFitAlgebra")
+  regFitFunction <- mxFitFunctionAlgebra("regFitAlgebra")
 
-    # complete model
-    outModel <- mxModel(outModel,
-                        regFitAlgebra,
-                        regFitFunction
-    )
-    outModel <- mxOption(outModel, "Calculate Hessian", "No")
-    outModel <- mxOption(outModel, "Standard Errors", "No")
+  # complete model
+  outModel <- mxModel(outModel,
+                      regFitAlgebra,
+                      regFitFunction
+  )
+  outModel <- mxOption(outModel, "Calculate Hessian", "No")
+  outModel <- mxOption(outModel, "Standard Errors", "No")
 
-    # return model
-    return(outModel)
+  # return model
+  return(outModel)
 
 }

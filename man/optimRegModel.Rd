@@ -4,15 +4,18 @@
 \alias{optimRegModel}
 \title{optimRegModel}
 \usage{
-optimRegModel(mxModelObject, regType = "lasso", regOn, regIndicators,
-  regValue_start = 0, regValue_end = 1, regValue_stepsize = 0.01,
-  criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE,
-  manualCV = NULL, zeroThresh = 0.001, scaleCV = TRUE, cores = 1)
+optimRegModel(mxModelObject, alpha = 1, gamma = 0, regOn,
+  regIndicators, regValue_start = 0, regValue_end = 1,
+  regValue_stepsize = 0.01, criterion = "BIC", autoCV = FALSE,
+  k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = 0.001,
+  scaleCV = TRUE, cores = 1)
 }
 \arguments{
 \item{mxModelObject}{an already run mxModel}
 
-\item{regType}{so far only "lasso" and "ridge" implemented}
+\item{alpha}{alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization}
+
+\item{gamma}{gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.}
 
 \item{regOn}{string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")}
 
@@ -83,7 +86,7 @@ regIndicators <- list("A" = selectedA) # save in a list. Note the naming of the 
 
 # Run the models:
 
-reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators)
+reg_model <- optimRegModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = regOn, regIndicators = regIndicators)
 
 reg_model$`fit measures`
 
@@ -91,7 +94,7 @@ reg_model$`best penalty`
 
 # Run the same model with 5-fold cross-validation
 
-CV_reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators,
+CV_reg_model <- optimRegModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = regOn, regIndicators = regIndicators,
                               autoCV = T, k = 5)
 CV_reg_model$`CV results`
 

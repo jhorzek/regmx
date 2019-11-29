@@ -10,12 +10,12 @@
 #' @export
 #'
 
-getEstimatedParameters <- function(regModel, regType, regOn, regIndicators, zeroThresh){
+getEstimatedParameters <- function(regModel, alpha, gamma, regOn, regIndicators, zeroThresh){
   matrices <- regModel$Submodel$matrices
 
   redefinedModel <- regModel$Submodel
 
-  if(regType == "lasso"){
+  if(alpha >0){
     ## set regularized parameters to zero if they are below the threshold:
     if(regModel$regValue$values > 0){
       for(matrix in regOn){

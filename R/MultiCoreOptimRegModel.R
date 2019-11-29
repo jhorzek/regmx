@@ -4,7 +4,8 @@
 #' MultiCoreOptimRegModel creates a range of regularized models from an mxModel. It automatically tests different penalty values and returns the best model. It only uses multiple cores.
 #'
 #' @param mxModelObject an already run mxModel
-#' @param regType so far only "lasso" and "ridge" implemented
+#' @param alpha alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization
+#' @param gamma gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.
 #' @param regValue numeric value depicting the penalty size
 #' @param regOn string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")
 #' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
@@ -56,7 +57,7 @@
 #'
 #' # Run the models:
 #'
-#' reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators, cores = 2)
+#' reg_model <- optimRegModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = regOn, regIndicators = regIndicators, cores = 2)
 #'
 #' reg_model$`fit measures`
 #'
@@ -64,7 +65,7 @@
 #'
 #' # Run the same model with 5-fold cross-validation
 #'
-#' CV_reg_model <- optimRegModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = regOn, regIndicators = regIndicators,
+#' CV_reg_model <- optimRegModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0 regOn  = regOn, regIndicators = regIndicators,
 #'                               autoCV = T, k = 5, cores = 2)
 #' CV_reg_model$`CV results`
 #'
@@ -72,7 +73,7 @@
 #' @import OpenMx doParallel
 #' @export
 
-MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regIndicators,
+MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
                                    regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
                                    criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
@@ -144,7 +145,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
                                                "BIC", "CV.m2LL", "negative variances","convergence")
                         results["penalty",1] <- regValue
                         reg_Model <- regModel(mxModelObject = mxModelObject,
-                                              regType = regType, regOn = regOn,
+                                              alpha = alpha, gamma = gamma, regOn = regOn,
                                               regIndicators = regIndicators, regValue = regValue)
 
                         reg_Model <- mxOption(reg_Model, "Calculate Hessian", "No") # might cause errors; check
@@ -163,7 +164,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
                           )}
 
                         ### compute AIC and BIC:
-                        FitM <- getFitMeasures(regModel = fit_reg_Model, regType = regType, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
+                        FitM <- getFitMeasures(regModel = fit_reg_Model, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
 
                         results["estimated Parameters",1] <- FitM$estimated_params # estimated parameters
                         results["m2LL",1] <- FitM$m2LL # -2LogL
@@ -196,7 +197,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
     # getting parameters:
     if(criterion == "m2LL"){
       best_penalty = minimum_m2LL
-      reg_Model_m2LL <- regModel(mxModelObject = mxModelObject, regType = regType, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
+      reg_Model_m2LL <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
       reg_Model_m2LL <- mxOption(reg_Model_m2LL, "Calculate Hessian", "No") # might cause errors; check
       reg_Model_m2LL <- mxOption(reg_Model_m2LL, "Standard Errors", "No") # might cause errors; check
 
@@ -206,7 +207,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
 
     if(criterion == "AIC"){
       best_penalty = minimum_AIC
-      reg_Model_AIC <- regModel(mxModelObject = mxModelObject, regType = regType, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
+      reg_Model_AIC <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
       reg_Model_AIC <- mxOption(reg_Model_AIC, "Calculate Hessian", "No") # might cause errors; check
       reg_Model_AIC <- mxOption(reg_Model_AIC, "Standard Errors", "No") # might cause errors; check
 
@@ -216,7 +217,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
 
     if(criterion == "BIC"){
       best_penalty = minimum_BIC
-      reg_Model_BIC <- regModel(mxModelObject = mxModelObject, regType = regType, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
+      reg_Model_BIC <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
       reg_Model_BIC <- mxOption(reg_Model_BIC, "Calculate Hessian", "No") # might cause errors; check
       reg_Model_BIC <- mxOption(reg_Model_BIC, "Standard Errors", "No") # might cause errors; check
 
@@ -226,7 +227,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
 
     if(criterion == "CV.m2LL"){
       best_penalty = minimum_CV.m2LL
-      reg_Model_CVm2LL <- regModel(mxModelObject = mxModelObject, regType = regType, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
+      reg_Model_CVm2LL <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
       reg_Model_CVm2LL <- mxOption(reg_Model_CVm2LL, "Calculate Hessian", "No") # might cause errors; check
       reg_Model_CVm2LL <- mxOption(reg_Model_CVm2LL, "Standard Errors", "No") # might cause errors; check
 
@@ -281,7 +282,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
       trainModel$data <- mxData(observed = Train_Sample, type = "raw")
       Test_Sample <- mxData(observed = Test_Sample, type = "raw")
 
-      fit_trainModel <- optimRegModel(mxModelObject = trainModel, regType = regType, regOn = regOn,
+      fit_trainModel <- optimRegModel(mxModelObject = trainModel, alpha = alpha, gamma = gamma, regOn = regOn,
                                       regIndicators = regIndicators,
                                       regValue_start = regValue_start,
                                       regValue_end = regValue_end,
@@ -313,7 +314,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, regType = "lasso", regOn, regI
       scale_full_raw_data <- scale(full_raw_data)
       mxModelObject$data <- mxData(observed = scale_full_raw_data, type = "raw")
     }
-    finalModel <- regModel(mxModelObject = mxModelObject, regType = regType,
+    finalModel <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma,
                            regOn = regOn, regIndicators = regIndicators,
                            regValue = best_penalty)
 
