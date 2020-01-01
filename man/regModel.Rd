@@ -4,13 +4,15 @@
 \alias{regModel}
 \title{regModel}
 \usage{
-regModel(mxModelObject, regType = "lasso", regOn, regIndicators,
+regModel(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
   regValue = 0)
 }
 \arguments{
 \item{mxModelObject}{an already run mxModel}
 
-\item{regType}{so far only "lasso" and "ridge" implemented}
+\item{alpha}{alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization}
+
+\item{gamma}{gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.}
 
 \item{regOn}{string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")}
 
@@ -62,7 +64,8 @@ regIndicators <- list("A" = selectedA) # save in a list. Note the naming of the 
 # size of the penalty:
 regValue = .2
 
-reg_model <- regModel(mxModelObject = fit_myModel, regType = "lasso", regOn  = c("A"), regIndicators = regIndicators, regValue = regValue)
+# implement lasso regularization:
+reg_model <- regModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = c("A"), regIndicators = regIndicators, regValue = regValue)
 fit_reg_model <- mxRun(reg_model)
 
 # extract the A matrix

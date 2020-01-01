@@ -17,8 +17,10 @@ getEstimatedParameters <- function(regModel, alpha, gamma, regOn, regIndicators,
 
   if(alpha >0){
     ## set regularized parameters to zero if they are below the threshold:
-    if(regModel$regValue$values > 0){
-      for(matrix in regOn){
+    RegValuesNames <- paste("regValues",regOn, sep ="")
+    for(matrix in regOn){
+      if(regModel[[paste("regValues",matrix, sep ="")]]$values > 0){
+
         mat <- matrices[[matrix]]
         if(any(abs(matrices[[matrix]]$values) < zeroThresh & matrices[[matrix]]$free & regIndicators[[matrix]] == 1)){
           # select parameters that are below the threshold
@@ -29,11 +31,11 @@ getEstimatedParameters <- function(regModel, alpha, gamma, regOn, regIndicators,
           matrices[[matrix]]$free[selection] <- FALSE
 
           # replace matrix in redefinedModel
-          redefinedModel <- mxModel(redefinedModel, matrices[[matrix]])
-        }
+          redefinedModel <- mxModel(redefinedModel, matrices[[matrix]])}
       }
     }
   }
+
 
   # get estimated parameters:
   estimatedParameters <- 0

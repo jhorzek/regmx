@@ -6,7 +6,7 @@
 #' @param mxModelObject an already run mxModel
 #' @param alpha alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization
 #' @param gamma gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.
-#' @param regValue numeric value depicting the penalty size
+#' @param regValues numeric value depicting the penalty size
 #' @param regOn string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")
 #' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
 #'
@@ -48,10 +48,10 @@
 #' regIndicators <- list("A" = selectedA) # save in a list. Note the naming of the list element
 #'
 #' # size of the penalty:
-#' regValue = .2
+#' regValues = .2
 #'
 #' # implement lasso regularization:
-#' reg_model <- regModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = c("A"), regIndicators = regIndicators, regValue = regValue)
+#' reg_model <- regModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = c("A"), regIndicators = regIndicators, regValues = regValues)
 #' fit_reg_model <- mxRun(reg_model)
 #'
 #' # extract the A matrix
@@ -63,7 +63,7 @@
 #' @import OpenMx
 #' @export
 
-regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, regValue = 0){
+regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, regValues = 0){
 
   ## Checks
   ### fitfunction:
@@ -101,8 +101,8 @@ regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, 
 
   mxNumObs <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = numObs,name = "numObs") # define numObs as mxMatrix
 
-  # create mxMatrix from regValue:
-  mxRegValue <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = regValue,name = "regValue") # define peanlty value
+  # create mxMatrix from regValues:
+  mxRegValue <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = regValues,name = "regValues") # define peanlty value
 
   # Define provided mxModelObject as submodel
   Submodel <- mxModel(mxModelObject, name = "Submodel") # has all the parameters and the base fit function (FML or FIML)
@@ -128,14 +128,12 @@ regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, 
 
   # iterate through the matrices that should be regularized:
   for (matrix in regOn){
-    #if(!(gamma == 0)){
-    #outModel$Submodel[[matrix]]$values[regIndicators[[matrix]]] <- outModel$Submodel[[matrix]]$values[regIndicators[[matrix]]] +.000001}  #small offset in starting values
-
+    # save MLE Estimates for adaptive LASSO
     MLEEstimates[[paste("MLE",matrix, "Estimate", sep ="")]] <- mxMatrix(type = "Full", values = mxModelObject[[matrix]]$values, free = F, name =names(MLEEstimates[paste("MLE",matrix, "Estimate", sep ="")]))
 
     mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name =names(mxRegIndicators[paste("selected",matrix, "Values", sep ="")]))
     # create mxAlgebra:
-    regularizationString <- paste("numObs*(regValue*((1-alpha)*sum(omxSelectRows(cvectorize(Submodel.",
+    regularizationString <- paste("numObs*(regValues*((1-alpha)*sum(omxSelectRows(cvectorize(Submodel.",
                                   matrix,"^2), cvectorize(selected",
                                   matrix,"Values)))+alpha*(sum(omxSelectRows(cvectorize(abs(MLE",
                                   matrix,"Estimate)^(-",gamma,")), cvectorize(selected",

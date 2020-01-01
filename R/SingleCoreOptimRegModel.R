@@ -74,8 +74,8 @@
 #' @export
 
 SingleCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
-                          regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
-                          criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
+                                    regValues,
+                                    criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
   # save call:
   call <- mget(names(formals()),sys.frame(sys.nframe()))

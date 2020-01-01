@@ -4,7 +4,8 @@
 #' optimRegCtModel creates a range of regularized models from a ctsem. It automatically tests different penalty values and returns the best model
 #'
 #' @param ctsemModelObject an already run ctsem object
-#' @param regType so far only "lasso" and "ridge" implemented
+#' @param alpha alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization
+#' @param gamma gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.
 #' @param regValue numeric value depicting the penalty size
 #' @param regOn string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")
 #' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
@@ -71,7 +72,7 @@
 #'
 #' # optimize regularized ctsem
 #'
-#' myRegCtModel <- optimRegCtModel(ctsemModelObject = fit_myModel, regType = "lasso",
+#' myRegCtModel <- optimRegCtModel(ctsemModelObject = fit_myModel, ralpha = 0, gamma = 1,
 #'                                 regOn = regOn, regIndicators = regIndicators,
 #'                                 link = link, dt = dt, autoCV = F, criterion = "BIC")
 #'
@@ -80,7 +81,7 @@
 #'
 #' # optimize regularized ctsem with cross-validation
 #'
-#' CV_myRegCtModel <- optimRegCtModel(ctsemModelObject = fit_myModel, regType = "lasso",
+#' CV_myRegCtModel <- optimRegCtModel(ctsemModelObject = fit_myModel, alpha = 0, gamma = 1,
 #'                                    regOn = regOn, regIndicators = regIndicators,
 #'                                    link = link, dt = dt, autoCV = T, k = 5, regValue_start = 0, regValue_end = .5, regValue_stepsize = .01)
 #'
@@ -91,21 +92,21 @@
 #' @import OpenMx ctsem
 #' @export
 
-optimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndicators,
-                            link = list("exp"), dt,
-                            regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
+optimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
+                            link = list("ident"), dt,
+                            regValues,
                             criterion = "BIC", autoCV = FALSE, Boot = FALSE, manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
   if(cores == 1){
 
-    ret <- SingleCoreOptimRegCtModel(ctsemModelObject = ctsemModelObject, regType = regType, regOn=regOn, regIndicators = regIndicators,
+    ret <- SingleCoreOptimRegCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma, regOn=regOn, regIndicators = regIndicators,
                                      link = link , dt = dt,
-                                     regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,
+                                     regValues = regValues,
                                      criterion = criterion, autoCV = autoCV, Boot = Boot, manualCV = manualCV, k = k, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
   }else{
-    ret <- MultiCoreOptimRegCtModel(ctsemModelObject = ctsemModelObject, regType = regType, regOn=regOn, regIndicators = regIndicators,
+    ret <- MultiCoreOptimRegCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma, regOn=regOn, regIndicators = regIndicators,
                                     link = link , dt = dt,
-                                    regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,
+                                    regValues = regValues,
                                     criterion = criterion, autoCV = autoCV, Boot = Boot, manualCV = manualCV, k = k, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
 
   }

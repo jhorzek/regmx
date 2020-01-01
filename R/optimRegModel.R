@@ -6,7 +6,7 @@
 #' @param mxModelObject an already run mxModel
 #' @param alpha alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization
 #' @param gamma gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.
-#' @param regValue numeric value depicting the penalty size
+#' @param regValues numeric value depicting the penalty size
 #' @param regOn string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")
 #' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
 #' @param regValue_start initial penalty value (recommended: 0)
@@ -75,18 +75,18 @@
 #' @export
 
 optimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
-                          regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
+                          regValues,
                           criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
   if(cores == 1){
 
     ret <- SingleCoreOptimRegModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators,
-                                               regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,
-                                               criterion = criterion, autoCV = autoCV, k = k, Boot = Boot, manualCV = manualCV, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
+                                   regValue = regValues,
+                                   criterion = criterion, autoCV = autoCV, k = k, Boot = Boot, manualCV = manualCV, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
   }else{
     ret <- MultiCoreOptimRegModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators,
-                                   regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,
-                                   criterion = criterion, autoCV = autoCV, k = k, Boot = Boot, manualCV = manualCV, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
+                                  regValues = regValues,
+                                  criterion = criterion, autoCV = autoCV, k = k, Boot = Boot, manualCV = manualCV, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
 
   }
 

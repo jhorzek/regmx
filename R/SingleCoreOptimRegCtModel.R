@@ -4,7 +4,8 @@
 #' SingleCoreOptimRegCtModel creates a range of regularized models from a ctsem. It automatically tests different penalty values and returns the best model. It uses a single core.
 #'
 #' @param ctsemModelObject an already run ctsem object
-#' @param regType so far only "lasso" and "ridge" implemented
+#' @param alpha alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization
+#' @param gamma gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.
 #' @param regValue numeric value depicting the penalty size
 #' @param regOn string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")
 #' @param regIndicators list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter
@@ -90,10 +91,10 @@
 #' @import OpenMx ctsem
 #' @export
 
-SingleCoreOptimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn, regIndicators,
-                            link = list("exp"), dt,
-                            regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
-                            criterion = "BIC", autoCV = FALSE, Boot = FALSE, manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE, cores = 1){
+SingleCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
+                                      link = list("exp"), dt,
+                                      regValues,
+                                      criterion = "BIC", autoCV = FALSE, Boot = FALSE, manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
   # save call:
   call <- mget(names(formals()),sys.frame(sys.nframe()))
@@ -110,6 +111,7 @@ SingleCoreOptimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn
   }
 
   ### Extract mxObject
+
   mxModelObject <- ctsemModelObject$mxobj
   ### regOn
   for(matrixName in regOn) {
@@ -122,120 +124,207 @@ SingleCoreOptimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn
   }
 
   ### matrix dimensions
+
   for(matrix in regOn){
-    if(nrow(mxModelObject[[matrix]]$values) == nrow(regIndicators[[matrix]]) &
-       ncol(mxModelObject[[matrix]]$values) == ncol(regIndicators[[matrix]])){}else{
+    if(!is.null(OpenMx::imxExtractSlot(mxModelObject[[matrix]], "values"))){
+      tempMat <- imxExtractSlot(mxModelObject[[matrix]], "values")
+    }else if(!is.null(OpenMx::imxExtractSlot(mxModelObject[[matrix]], "result"))){
+      tempMat <- imxExtractSlot(mxModelObject[[matrix]], "result")
+    }else{next}
+    if(nrow(tempMat) == nrow(regIndicators[[matrix]]) &
+       ncol(tempMat) == ncol(regIndicators[[matrix]])){}else{
          stop("Dimensions of Matrix ", regOn[[matrix]], " and provided regIndicator with index ", matrix, " do not match.", sep = "")
        }
   }
 
-  # create regValues:
-  regValues = seq(from = regValue_start, to = regValue_end, by = regValue_stepsize)
 
   if (!autoCV & !Boot){
-    results <- matrix(NA, nrow = 8, ncol = length(regValues))
-    rownames(results) <- c("penalty", "estimated Parameters", "m2LL","AIC",
-                           "BIC", "CV.m2LL", "negative variances","convergence")
+
     counter <- 1
 
-    # create progress bar:
-    pb <- txtProgressBar(min = regValue_start, max = regValue_end, style = 3)
-
     # iterate over regValues:
-    for(regValue in regValues){
-      results["penalty",counter] <- regValue
+    if(is.list(regValues)){
+      # create a grid with all possible combinations of regValues:
+      RegValuesGrid <- as.matrix(expand.grid(regValues))
+
+    }else{
+      RegValuesGrid <- matrix(NA, nrow = length(regValues), ncol = length(regOn))
+      for(col in 1:length(regOn)){
+        RegValuesGrid[,col] <- regValues
+      }
+      colnames(RegValuesGrid) <- regOn
+    }
+
+    # create progress bar:
+    pb <- txtProgressBar(min = 1, max = nrow(RegValuesGrid), style = 3)
+
+    # create list to store results
+
+    results <- list("penalty"= RegValuesGrid, "estimated Parameters"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1), "m2LL"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1),"AIC"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1),
+                    "BIC"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1), "CV.m2LL"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1), "negative variances"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1),"convergence"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1))
+
+    for(row in 1:nrow(RegValuesGrid)){
+      if(is.matrix(RegValuesGrid)){
+        regValue <- vector("list", length = ncol(RegValuesGrid))
+        names(regValue) <- colnames(RegValuesGrid)
+        regValue[colnames(RegValuesGrid)] <- RegValuesGrid[row,colnames(RegValuesGrid)]
+      }else{
+        regValue <- RegValuesGrid[row]
+      }
+
       reg_ctModel <- regCtModel(ctsemModelObject = ctsemModelObject, link = link, dt = dt,
-                                regType = regType, regOn = regOn,
+                                alpha = alpha, gamma = gamma, regOn = regOn,
                                 regIndicators = regIndicators, regValue = regValue)
 
       reg_ctModel <- mxOption(reg_ctModel, "Calculate Hessian", "No") # might cause errors; check
       reg_ctModel <- mxOption(reg_ctModel, "Standard Errors", "No") # might cause errors; check
       fit_reg_ctModel <- mxRun(reg_ctModel, silent = T) # run Model; starting values can be very critical as the model tends to get stuck in local minima either close to the model parameters without penalty or all parameters set to 0
 
-      results["convergence",counter] <- fit_reg_ctModel$output$status$code# check convergence
+      results[["convergence"]][counter] <- fit_reg_ctModel$output$status$code# check convergence
 
       if("S" %in% names(fit_reg_ctModel$Submodel)){
         variances = diag(nrow(fit_reg_ctModel$Submodel$S$values))==1
 
         if(any(fit_reg_ctModel$Submodel$S$values[variances] <0)){
-          results["negative variances",counter] <- 1 # check negative variances
+          results[["negative variances"]][counter] <- 1 # check negative variances
         }else(
-          results["negative variances",counter] <- 0
+          results[["negative variances"]][counter] <- 0
         )}
 
       ### compute AIC and BIC:
-      FitM <- getCtFitMeasures(regCtModel = fit_reg_ctModel, regType = regType, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
+      FitM <- getCtFitMeasures(regCtModel = fit_reg_ctModel, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
 
-      results["estimated Parameters",counter] <- FitM$estimated_params # estimated parameters
-      results["m2LL",counter] <- FitM$m2LL # -2LogL
-      results["AIC",counter] <- FitM$AIC # AIC
-      results["BIC",counter] <- FitM$BIC # BIC
-      results["CV.m2LL",counter] <- FitM$CV.m2LL # CV.m2LL
+      results[["estimated Parameters"]][counter] <- FitM$estimated_params # estimated parameters
+      results[["m2LL"]][counter] <- FitM$m2LL # -2LogL
+      results[["AIC"]][counter] <- FitM$AIC # AIC
+      results[["BIC"]][counter] <- FitM$BIC # BIC
+      results[["CV.m2LL"]][counter] <- FitM$CV.m2LL # CV.m2LL
 
-      setTxtProgressBar(pb, regValue)
+      setTxtProgressBar(pb, counter)
       counter <- counter+1
     }
 
     # Find Minima / best penalty value
-    convergeSubset <- (results["convergence",] == 0) == (results["negative variances",]==0)
-    convergeSubset <- results[,convergeSubset]
 
-    minimum_m2LL <- convergeSubset[1,which(convergeSubset["m2LL",]==min(as.numeric(convergeSubset["m2LL",])))]
+    convergeSubset <- (results[["convergence"]] == 0) & (results[["negative variances"]]==0)
 
-    minimum_AIC <- convergeSubset[1,which(convergeSubset["AIC",]==min(as.numeric(convergeSubset["AIC",])))]
+    rowIndicators <- which(results[["m2LL"]][convergeSubset] == min(results[["m2LL"]][convergeSubset]))
+    minimum_m2LL <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
+    colnames(minimum_m2LL) = regOn
 
-    minimum_BIC <- convergeSubset[1,which(convergeSubset["BIC",]==min(convergeSubset["BIC",]))]
+    rowIndicators <- which(results[["AIC"]][convergeSubset] == min(results[["AIC"]][convergeSubset]))
+    minimum_AIC <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
+    colnames(minimum_AIC) = regOn
 
-    minimum_CV.m2LL <- convergeSubset[1,which(convergeSubset["CV.m2LL",]==min(convergeSubset["CV.m2LL",]))]
+    rowIndicators <- which(results[["BIC"]][convergeSubset] == min(results[["BIC"]][convergeSubset]))
+    minimum_BIC <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
+    colnames(minimum_BIC) = regOn
+
+    rowIndicators <- which(results[["CV.m2LL"]][convergeSubset] == min(results[["CV.m2LL"]][convergeSubset]))
+    minimum_CV.m2LL <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
+    colnames(minimum_CV.m2LL) = regOn
 
 
     # getting parameters:
     if(criterion == "m2LL"){
-      best_penalty = minimum_m2LL
-      reg_CtModel_m2LL <- regCtModel(ctsemModelObject = ctsemModelObject, regType = regType,
+      if(nrow(minimum_m2LL)>1){
+        warning(paste("Multiple minima for m2LL found. Will use the following penalty values:", paste(as.matrix(minimum_m2LL)[nrow(minimum_m2LL),],collapse = ","), sep = ":"))
+        best_penalty = t(as.matrix(as.matrix(minimum_m2LL)[nrow(minimum_m2LL),]))
+      }else{
+        best_penalty = minimum_m2LL
+      }
+
+      if(is.matrix(best_penalty)){
+        regValue <- vector("list", length = ncol(best_penalty))
+        names(regValue) <- colnames(best_penalty)
+        regValue[colnames(best_penalty)] <- best_penalty
+      }else{
+        regValue <- best_penalty
+      }
+
+      reg_CtModel_m2LL <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                                      regOn = regOn, regIndicators = regIndicators,
-                                     regValue = best_penalty, link = link, dt = dt)
+                                     regValues = regValue, link = link, dt = dt)
       reg_CtModel_m2LL <- mxOption(reg_CtModel_m2LL, "Calculate Hessian", "No") # might cause errors; check
       reg_CtModel_m2LL <- mxOption(reg_CtModel_m2LL, "Standard Errors", "No") # might cause errors; check
 
       fit_reg_CtModel_m2LL <- mxRun(reg_CtModel_m2LL, silent = T)
-      out <- list("best penalty" = minimum_m2LL, "bestmodel" = fit_reg_CtModel_m2LL, "fit measures" = t(results), "call" = call)
+      out <- list("best penalty" = minimum_m2LL, "bestmodel" = fit_reg_CtModel_m2LL, "fit measures" = results, "call" = call)
     }
 
     if(criterion == "AIC"){
-      best_penalty = minimum_AIC
-      reg_CtModel_AIC <- regCtModel(ctsemModelObject = ctsemModelObject, regType = regType,
+      if(nrow(minimum_AIC)>1){
+        warning(paste("Multiple minima for AIC found. Will use the following penalty values:", paste(as.matrix(minimum_AIC)[nrow(minimum_AIC),],collapse = ","), sep = ":"))
+        best_penalty = t(as.matrix(as.matrix(minimum_AIC)[nrow(minimum_AIC),]))
+      }else{
+        best_penalty = minimum_AIC
+      }
+
+      if(is.matrix(best_penalty)){
+        regValue <- vector("list", length = ncol(best_penalty))
+        names(regValue) <- colnames(best_penalty)
+        regValue[colnames(best_penalty)] <- best_penalty
+      }else{
+        regValue <- best_penalty
+      }
+      reg_CtModel_AIC <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                                     regOn = regOn, regIndicators = regIndicators,
-                                    regValue = best_penalty, link = link, dt = dt)
+                                    regValues = regValue, link = link, dt = dt)
       reg_CtModel_AIC <- mxOption(reg_CtModel_AIC, "Calculate Hessian", "No") # might cause errors; check
       reg_CtModel_AIC <- mxOption(reg_CtModel_AIC, "Standard Errors", "No") # might cause errors; check
 
       fit_reg_CtModel_AIC <- mxRun(reg_CtModel_AIC, silent = T)
-      out <- list("best penalty" = minimum_AIC, "bestmodel" = fit_reg_CtModel_AIC, "fit measures" = t(results), "call" = call)
+      out <- list("best penalty" = minimum_AIC, "bestmodel" = fit_reg_CtModel_AIC, "fit measures" = results, "call" = call)
     }
 
     if(criterion == "BIC"){
-      best_penalty = minimum_BIC
-      reg_CtModel_BIC <- regCtModel(ctsemModelObject = ctsemModelObject, regType = regType,
+      if(nrow(minimum_BIC)>1){
+        warning(paste("Multiple minima for BIC found. Will use the following penalty values:", paste(as.matrix(minimum_BIC)[nrow(minimum_BIC),],collapse = ","), sep = ":"))
+        best_penalty = t(as.matrix(as.matrix(minimum_BIC)[nrow(minimum_BIC),]))
+      }else{
+        best_penalty = minimum_BIC
+      }
+
+      if(is.matrix(best_penalty)){
+        regValue <- vector("list", length = ncol(best_penalty))
+        names(regValue) <- colnames(best_penalty)
+        regValue[colnames(best_penalty)] <- best_penalty
+      }else{
+        regValue <- best_penalty
+      }
+      reg_CtModel_BIC <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                                     regOn = regOn, regIndicators = regIndicators,
-                                    regValue = best_penalty, link = link, dt = dt)
+                                    regValues = regValue, link = link, dt = dt)
       reg_CtModel_BIC <- mxOption(reg_CtModel_BIC, "Calculate Hessian", "No") # might cause errors; check
       reg_CtModel_BIC <- mxOption(reg_CtModel_BIC, "Standard Errors", "No") # might cause errors; check
 
       fit_reg_CtModel_BIC <- mxRun(reg_CtModel_BIC, silent = T)
-      out <- list("best penalty" = minimum_BIC, "bestmodel" = fit_reg_CtModel_BIC, "fit measures" = t(results), "call" = call)
+      out <- list("best penalty" = minimum_BIC, "bestmodel" = fit_reg_CtModel_BIC, "fit measures" = results, "call" = call)
     }
 
     if(criterion == "CV.m2LL"){
-      best_penalty = minimum_CV.m2LL
-      reg_CtModel_CVm2LL <- regCtModel(ctsemModelObject = ctsemModelObject, regType = regType,
+      if(nrow(minimum_CV.m2LL)>1){
+        warning(paste("Multiple minima for CV.m2LL found. Will use the following penalty values:", paste(as.matrix(minimum_CV.m2LL)[nrow(minimum_CV.m2LL),],collapse = ","), sep = ":"))
+        best_penalty = t(as.matrix(as.matrix(minimum_CV.m2LL)[nrow(minimum_CV.m2LL),]))
+      }else{
+        best_penalty = minimum_CV.m2LL
+      }
+
+      if(is.matrix(best_penalty)){
+        regValue <- vector("list", length = ncol(best_penalty))
+        names(regValue) <- colnames(best_penalty)
+        regValue[colnames(best_penalty)] <- best_penalty
+      }else{
+        regValue <- best_penalty
+      }
+      reg_CtModel_CVm2LL <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                                        regOn = regOn, regIndicators = regIndicators,
-                                       regValue = best_penalty, link = link, dt = dt)
+                                       regValues = regValue, link = link, dt = dt)
       reg_CtModel_CVm2LL <- mxOption(reg_CtModel_CVm2LL, "Calculate Hessian", "No") # might cause errors; check
       reg_CtModel_CVm2LL <- mxOption(reg_CtModel_CVm2LL, "Standard Errors", "No") # might cause errors; check
 
       fit_reg_CtModel_CVm2LL <- mxRun(reg_CtModel_CVm2LL, silent = T)
-      out <- list("best penalty" =minimum_CV.m2LL, "bestmodel" = fit_reg_CtModel_CVm2LL, "fit measures" = t(results), "call" = call)
+      out <- list("best penalty" =minimum_CV.m2LL, "bestmodel" = fit_reg_CtModel_CVm2LL, "fit measures" = results, "call" = call)
     }
     class(out) <- "OptimRegCtModelObject"
 
@@ -268,11 +357,30 @@ SingleCoreOptimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn
     # separate variables from dT and intervalID
     colsWithData <- grep("Y", colnames(full_raw_data))
 
-    Res <- matrix(NA, nrow = length(seq(from = regValue_start, to = regValue_end, by = regValue_stepsize)), ncol = k+4)
-    colnames(Res) <- c("penalty", "mean CV/Boot_m2LL",paste("fold", 1:k), "negative variances", "convergence problems")
-    Res[,"penalty"] <- seq(from = regValue_start, to = regValue_end, by = regValue_stepsize)
-    Res[,"negative variances"] <- 0
-    Res[,"convergence problems"] <- 0
+    if(is.list(regValues)){
+      # create a grid with all possible combinations of regValues:
+      RegValuesGrid <- as.matrix(expand.grid(regValues))
+
+    }else{
+      RegValuesGrid <- matrix(NA, nrow = length(regValues), ncol = length(regOn))
+      for(col in 1:length(regOn)){
+        RegValuesGrid[,col] <- regValues
+      }
+      colnames(RegValuesGrid) <- regOn
+    }
+
+    # create list to store results
+
+    Res <- vector("list", length = k+4)
+    names(Res) <- c("penalty", "mean CV/Boot_m2LL", paste("fold", 1:k),
+                    "negative variances","convergence")
+    Res[["penalty"]] <- RegValuesGrid
+    Res[["mean CV/Boot_m2LL"]] <- matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1)
+    Res[["negative variances"]] <- matrix(0, nrow = nrow(RegValuesGrid), ncol = 1)
+    Res[["convergence"]] <- matrix(0, nrow = nrow(RegValuesGrid), ncol = 1)
+    for(i in 1:k){
+      Res[[paste("fold", i)]] <- matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1)
+    }
 
     fold <- 1
     for(Fold in Folds){
@@ -289,14 +397,14 @@ SingleCoreOptimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn
       trainModel <- ctsemModelObject
       trainModel$mxobject$data <- mxData(observed = Train_Sample, type = "raw")
 
-      fit_trainModel <- optimRegCtModel(ctsemModelObject = trainModel, regType = regType, regOn = regOn, regIndicators = regIndicators,
+      fit_trainModel <- optimRegCtModel(ctsemModelObject = trainModel, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators,
                                         link = link, dt = dt,
-                                        regValue_start = regValue_start, regValue_end = regValue_end, regValue_stepsize = regValue_stepsize,
+                                        regValues = regValues,
                                         criterion = "CV.m2LL", autoCV = FALSE, Boot = FALSE, manualCV = Test_Sample, k = 5, zeroThresh = zeroThresh, scaleCV = scaleCV)
 
-      Res[,paste("fold", fold)] <- fit_trainModel$`fit measures`[,'CV.m2LL']
-      Res[,"negative variances"] <- Res[,"negative variances"] + fit_trainModel$`fit measures`[,'negative variances']
-      Res[,"convergence problems"] <- Res[,"convergence problems"] + fit_trainModel$`fit measures`[,'convergence']
+      Res[[paste("fold", fold)]] <- fit_trainModel$`fit measures`[['CV.m2LL']]
+      Res[["negative variances"]] <- Res[["negative variances"]] + fit_trainModel$`fit measures`[['negative variances']]
+      Res[["convergence problems"]] <- Res[["convergence problems"]] + fit_trainModel$`fit measures`[['convergence']]
 
       cat(paste("\n Completed CV for fold", fold, "of", k, "\n"))
 
@@ -304,23 +412,48 @@ SingleCoreOptimRegCtModel <- function(ctsemModelObject, regType = "lasso", regOn
     }
 
     # mean the m2LLs:
-    Res[,"mean CV/Boot_m2LL"] <- apply(Res[, paste("fold", 1:k)], 1, mean)
+    m2LLs <- Res[[paste("fold", 1)]]
+    for(i in 2:k){
+      m2LLs <- cbind(m2LLs, Res[[paste("fold", i)]])
+    }
+
+    Res[["mean CV/Boot_m2LL"]] <- matrix(apply(m2LLs, 1, mean), ncol = 1)
 
     # only use runs without problems:
-    Res_final <- Res[Res[,"negative variances"] == 0 && Res[,"convergence problems"] == 0,]
+    convergeSubset <- (Res[["convergence"]] == 0) & (Res[["negative variances"]]==0)
 
     # find best penalty value:
-    best_penalty <- Res_final[which(Res_final[,"mean CV/Boot_m2LL"] == min(Res_final[,"mean CV/Boot_m2LL"])), "penalty"]
+
+    rowIndicators <- which(Res[["mean CV/Boot_m2LL"]][convergeSubset] == min(Res[["mean CV/Boot_m2LL"]][convergeSubset]))
+    best_penalty <- matrix(Res[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
+    colnames(best_penalty) = regOn
 
     # fit best penalty model with full data set:
     if(scaleCV){
       scale_full_raw_data <- full_raw_data
       scale_full_raw_data[,colsWithData] <- scale(full_raw_data[,colsWithData])
-      mxModelObject$data <- mxData(observed = scale_full_raw_data, type = "raw")
+      ctsemModelObject$mxobj$data <- mxData(observed = scale_full_raw_data, type = "raw")
     }
-    finalModel <- regCtModel(ctsemModelObject = ctsemModelObject, regType = regType,
+
+    if(nrow(best_penalty)>1){
+      warning(paste("Multiple minima for CV.m2LL found. Will use the following penalty values:", paste(as.matrix(best_penalty)[nrow(best_penalty),],collapse = ","), sep = ":"))
+      best_penalty = t(as.matrix(as.matrix(best_penalty)[nrow(best_penalty),]))
+    }else{
+      best_penalty = best_penalty
+    }
+
+    if(is.matrix(best_penalty)){
+      regValue <- vector("list", length = ncol(best_penalty))
+      names(regValue) <- colnames(best_penalty)
+      regValue[colnames(best_penalty)] <- best_penalty
+    }else{
+      regValue <- best_penalty
+    }
+    finalModel <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                              regOn = regOn, regIndicators = regIndicators,
-                             regValue = best_penalty, link = link, dt = dt)
+                             regValue = regValue, link = link, dt = dt)
+    finalModel <- mxOption(finalModel, "Calculate Hessian", "No") # might cause errors; check
+    finalModel <- mxOption(finalModel, "Standard Errors", "No") # might cause errors; check
 
     ffinalModel <- mxRun(finalModel, silent = T)
 

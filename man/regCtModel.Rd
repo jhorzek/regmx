@@ -4,13 +4,11 @@
 \alias{regCtModel}
 \title{regCtModel}
 \usage{
-regCtModel(ctsemModelObject, regType = "lasso", regOn, regIndicators,
-  regValue = 0, link, dt = NULL)
+regCtModel(ctsemModelObject, alpha = 1, gamma = 0, regOn,
+  regIndicators, regValue = 0, link, dt = NULL)
 }
 \arguments{
 \item{ctsemModelObject}{an already run ctsem object}
-
-\item{regType}{so far only "lasso" and "ridge" implemented}
 
 \item{regOn}{string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")}
 
@@ -18,9 +16,11 @@ regCtModel(ctsemModelObject, regType = "lasso", regOn, regIndicators,
 
 \item{regValue}{numeric value depicting the penalty size}
 
-\item{link}{list with functions that will be applied to the regularized matrices. For example, if the discrete time autoregressive and cross-lagged parameters should be regularized, use list("DRIFT" = "expm"). You can also define your own link function. DESCRIPTION NOT YET IMPLEMENTED}
+\item{link}{list with functions that will be applied to the regularized matrices. For example, if the discrete time autoregressive and cross-lagged parameters should be regularized, use list("DRIFT" = "expm"). If no link ist provided, the ct parameters will be regularized directly.}
 
 \item{dt}{list with vectors depicting the time points for which the discrete time parameters should be regularized (e.g., list("DRIFT" = c(1)))}
+
+\item{regType}{so far only "lasso" and "ridge" implemented}
 }
 \description{
 Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
@@ -76,7 +76,7 @@ dt = list("DRIFT"= 1)
 regValue = .2
 
 # build regularized model
-myRegCtModel <- regCtModel(ctsemModelObject = fit_myModel, regType = "lasso", regOn = regOn, regIndicators = regIndicators, regValue = regValue, link = link, dt = dt)
+myRegCtModel <- regCtModel(ctsemModelObject = fit_myModel, alpha = 1, gamma = 0, regOn = regOn, regIndicators = regIndicators, regValue = regValue, link = link, dt = dt)
 fit_myRegCtModel <- mxRun(myRegCtModel)
 # extract DRIFT parameters for deltaT = 1
 expm(fit_myRegCtModel$Submodel$DRIFT$values)
