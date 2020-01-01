@@ -4,16 +4,27 @@
 \alias{MultiCoreOptimRegCtModel}
 \title{MultiCoreOptimRegCtModel}
 \usage{
-MultiCoreOptimRegCtModel(ctsemModelObject, regType = "lasso", regOn,
-  regIndicators, link = list("exp"), dt, regValue_start = 0,
-  regValue_end = 1, regValue_stepsize = 0.01, criterion = "BIC",
-  autoCV = FALSE, Boot = FALSE, manualCV = NULL, k = 5,
-  zeroThresh = 0.001, scaleCV = TRUE, cores)
+MultiCoreOptimRegCtModel(
+  ctsemModelObject,
+  alpha = 1,
+  gamma = 0,
+  regOn,
+  regIndicators,
+  link = list("exp"),
+  dt,
+  regValues,
+  criterion = "BIC",
+  autoCV = FALSE,
+  Boot = FALSE,
+  manualCV = NULL,
+  k = 5,
+  zeroThresh = 0.001,
+  scaleCV = TRUE,
+  cores
+)
 }
 \arguments{
 \item{ctsemModelObject}{an already run ctsem object}
-
-\item{regType}{so far only "lasso" and "ridge" implemented}
 
 \item{regOn}{string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")}
 
@@ -22,12 +33,6 @@ MultiCoreOptimRegCtModel(ctsemModelObject, regType = "lasso", regOn,
 \item{link}{list with functions that will be applied to the regularized matrices. For example, if the discrete time autoregressive and cross-lagged parameters should be regularized, use list("DRIFT" = "expm"). You can also define your own link function. DESCRIPTION NOT YET IMPLEMENTED}
 
 \item{dt}{list with vectors depicting the time points for which the discrete time parameters should be regularized (e.g., list("DRIFT" = c(1)))}
-
-\item{regValue_start}{initial penalty value (recommended: 0)}
-
-\item{regValue_end}{highest penalty value tested}
-
-\item{regValue_stepsize}{increase in penValue between iterations}
 
 \item{criterion}{Criterion for chosing the best final model. Possible are: AIC, BIC, CV.m2LL (only if manualCV is provided)}
 
@@ -45,7 +50,15 @@ MultiCoreOptimRegCtModel(ctsemModelObject, regType = "lasso", regOn,
 
 \item{cores}{number of cores}
 
+\item{regType}{so far only "lasso" and "ridge" implemented}
+
 \item{regValue}{numeric value depicting the penalty size}
+
+\item{regValue_start}{initial penalty value (recommended: 0)}
+
+\item{regValue_end}{highest penalty value tested}
+
+\item{regValue_stepsize}{increase in penValue between iterations}
 }
 \description{
 Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!

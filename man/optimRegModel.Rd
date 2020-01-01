@@ -4,11 +4,22 @@
 \alias{optimRegModel}
 \title{optimRegModel}
 \usage{
-optimRegModel(mxModelObject, alpha = 1, gamma = 0, regOn,
-  regIndicators, regValue_start = 0, regValue_end = 1,
-  regValue_stepsize = 0.01, criterion = "BIC", autoCV = FALSE,
-  k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = 0.001,
-  scaleCV = TRUE, cores = 1)
+optimRegModel(
+  mxModelObject,
+  alpha = 1,
+  gamma = 0,
+  regOn,
+  regIndicators,
+  regValues,
+  criterion = "BIC",
+  autoCV = FALSE,
+  k = 5,
+  Boot = FALSE,
+  manualCV = NULL,
+  zeroThresh = 0.001,
+  scaleCV = TRUE,
+  cores = 1
+)
 }
 \arguments{
 \item{mxModelObject}{an already run mxModel}
@@ -21,11 +32,7 @@ optimRegModel(mxModelObject, alpha = 1, gamma = 0, regOn,
 
 \item{regIndicators}{list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter}
 
-\item{regValue_start}{initial penalty value (recommended: 0)}
-
-\item{regValue_end}{highest penalty value tested}
-
-\item{regValue_stepsize}{increase in penValue between iterations}
+\item{regValues}{numeric value depicting the penalty size}
 
 \item{criterion}{Criterion for chosing the best final model. Possible are: AIC, BIC, CV.m2LL (only if manualCV is provided)}
 
@@ -43,7 +50,11 @@ optimRegModel(mxModelObject, alpha = 1, gamma = 0, regOn,
 
 \item{cores}{Number of cores to use (>1 for parallel processing)}
 
-\item{regValue}{numeric value depicting the penalty size}
+\item{regValue_start}{initial penalty value (recommended: 0)}
+
+\item{regValue_end}{highest penalty value tested}
+
+\item{regValue_stepsize}{increase in penValue between iterations}
 }
 \description{
 Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!

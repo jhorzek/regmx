@@ -74,7 +74,7 @@
 #' @export
 
 MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
-                                   regValue_start = 0, regValue_end = 1, regValue_stepsize = .01,
+                                   regValues,
                                    criterion = "BIC", autoCV = FALSE, k = 5, Boot = FALSE, manualCV = NULL, zeroThresh = .001, scaleCV = TRUE, cores = 1){
 
   # save call:
@@ -111,14 +111,7 @@ MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, r
   #  stop("Provided mxModelObject is not of type MxRAMModel")
   #}
   ### regOn
-  for(matrixName in regOn) {
-    if(!matrixName %in% names(mxModelObject)){
-      stop(paste("Matrix ", matrixName, " provided in regOn was not found in the provided regModel", sep = ""))
-    }
-    if(!matrixName %in% names(regIndicators)){
-      stop(paste("Matrix ", matrixName, " provided in regOn was not found in the regIndicator list.", sep = ""))
-    }
-  }
+  checkRegularizedMatrixExistance(regOn = regOn, mxModelObject = mxModelObject, regIndicators = regIndicators)
 
   ### matrix dimensions
   for(matrix in regOn){
@@ -129,21 +122,26 @@ MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, r
   }
 
 
-
-  # create regValues:
-  regValues = seq(from = regValue_start, to = regValue_end, by = regValue_stepsize)
-
   if (!autoCV & !Boot){
 
+    # create a grid with all possible combinations of regValues:
+
+    RegValuesGrid <- createRegValueGrid(regValues = regValues, regOn = regOn)
+
+    # create list to store results
+
+    results <- createResultsList(RegValuesGrid = RegValuesGrid, autoCV = autoCV, k = k)
+
     # iterate over regValues:
-    ParRes <- foreach(regValue = regValues, .combine = "cbind",.packages = c("OpenMx","regmx"),
-                      .inorder = FALSE,
-                      .errorhandling = "stop",
-                      .verbose = TRUE) %dopar% {
-                        results <- matrix(NA, nrow = 8, ncol = 1)
-                        rownames(results) <- c("penalty", "estimated Parameters", "m2LL","AIC",
-                                               "BIC", "CV.m2LL", "negative variances","convergence")
-                        results["penalty",1] <- regValue
+    comb <- function(...) {
+      mapply('rbind', ..., SIMPLIFY=FALSE)
+    }
+
+    ParRes <- foreach(row = 1:nrow(RegValuesGrid), .combine='comb', .multicombine=TRUE,.packages = c("OpenMx","regmx"),
+                       .inorder = FALSE,
+                       .errorhandling = "stop",
+                       .verbose = TRUE) %dopar% {
+                        regValue <- RegValuesGrid[row,]
                         reg_Model <- regModel(mxModelObject = mxModelObject,
                                               alpha = alpha, gamma = gamma, regOn = regOn,
                                               regIndicators = regIndicators, regValue = regValue)
@@ -152,90 +150,70 @@ MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, r
                         reg_Model <- mxOption(reg_Model, "Standard Errors", "No") # might cause errors; check
                         fit_reg_Model <- mxRun(reg_Model, silent = T) # run Model; starting values can be very critical as the model tends to get stuck in local minima either close to the model parameters without penalty or all parameters set to 0
 
-                        results["convergence",1] <- fit_reg_Model$output$status$code# check convergence
+                        convergence <- fit_reg_Model$output$status$code# check convergence
 
                         if("S" %in% names(fit_reg_Model$Submodel)){
                           variances = diag(nrow(fit_reg_Model$Submodel$S$values))==1
 
                           if(any(fit_reg_Model$Submodel$S$values[variances] <0)){
-                            results["negative variances",1] <- 1 # check negative variances
+                            negative.variances <- 1 # check negative variances
                           }else(
-                            results["negative variances",1] <- 0
+                            negative.variances <- 0
                           )}
 
                         ### compute AIC and BIC:
                         FitM <- getFitMeasures(regModel = fit_reg_Model, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
 
-                        results["estimated Parameters",1] <- FitM$estimated_params # estimated parameters
-                        results["m2LL",1] <- FitM$m2LL # -2LogL
-                        results["AIC",1] <- FitM$AIC # AIC
-                        results["BIC",1] <- FitM$BIC # BIC
-                        results["CV.m2LL",1] <- FitM$CV.m2LL # CV.m2LL
+                        estimated.Parameters <- FitM$estimated_params # estimated parameters
+                        m2LL <- FitM$m2LL # -2LogL
+                        AIC <- FitM$AIC # AIC
+                        BIC <- FitM$BIC # BIC
+                        CV.m2LL <- FitM$CV.m2LL # CV.m2LL
 
-                        # foreach expects a vector:
-                        results <- as.vector(results)
+                        list("penalty"= regValue, "estimated Parameters"=estimated.Parameters, "m2LL"=m2LL,"AIC"=AIC,
+                             "BIC"=BIC, "CV.m2LL"=CV.m2LL, "negative variances"=negative.variances,"convergence"=convergence)
                       }
 
 
-    rownames(ParRes) <- c("penalty", "estimated Parameters", "m2LL","AIC",
-                          "BIC", "CV.m2LL", "negative variances","convergence")
-
     results <- ParRes
+
     # Find Minima / best penalty value
-    convergeSubset <- (results["convergence",] == 0) == (results["negative variances",]==0)
-    convergeSubset <- results[,convergeSubset]
+    convergedSubset <- (results[["convergence"]] == 0) & (results[["negative variances"]]==0)
 
-    minimum_m2LL <- convergeSubset[1,which(convergeSubset["m2LL",]==min(as.numeric(convergeSubset["m2LL",])))]
+    minimum_m2LL <- findMinumumCriterion(results = results, criterion = "m2LL", convergedSubset = convergedSubset, regOn = regOn)
 
-    minimum_AIC <- convergeSubset[1,which(convergeSubset["AIC",]==min(as.numeric(convergeSubset["AIC",])))]
+    minimum_AIC <- findMinumumCriterion(results = results, criterion = "AIC", convergedSubset = convergedSubset, regOn = regOn)
 
-    minimum_BIC <- convergeSubset[1,which(convergeSubset["BIC",]==min(convergeSubset["BIC",]))]
+    minimum_BIC <- findMinumumCriterion(results = results, criterion = "BIC", convergedSubset = convergedSubset, regOn = regOn)
 
-    minimum_CV.m2LL <- convergeSubset[1,which(convergeSubset["CV.m2LL",]==min(convergeSubset["CV.m2LL",]))]
-
+    minimum_CV.m2LL <- findMinumumCriterion(results = results, criterion = "CV.m2LL", convergedSubset = convergedSubset, regOn = regOn)
 
     # getting parameters:
     if(criterion == "m2LL"){
-      best_penalty = minimum_m2LL
-      reg_Model_m2LL <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
-      reg_Model_m2LL <- mxOption(reg_Model_m2LL, "Calculate Hessian", "No") # might cause errors; check
-      reg_Model_m2LL <- mxOption(reg_Model_m2LL, "Standard Errors", "No") # might cause errors; check
-
-      fit_reg_Model_m2LL <- mxRun(reg_Model_m2LL, silent = T)
-      out <- list("best penalty" = minimum_m2LL, "bestmodel" = fit_reg_Model_m2LL, "fit measures" = t(results), "call" = call)
+      out <- computeFinalParameters(minimum_criterion = minimum_m2LL, mxModelObject = mxModelObject,
+                                    alpha = alpha, gamma = gamma, regOn = regOn,
+                                    regIndicators = regIndicators, results = results)
     }
 
     if(criterion == "AIC"){
-      best_penalty = minimum_AIC
-      reg_Model_AIC <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
-      reg_Model_AIC <- mxOption(reg_Model_AIC, "Calculate Hessian", "No") # might cause errors; check
-      reg_Model_AIC <- mxOption(reg_Model_AIC, "Standard Errors", "No") # might cause errors; check
-
-      fit_reg_Model_AIC <- mxRun(reg_Model_AIC, silent = T)
-      out <- list("best penalty" = minimum_AIC, "bestmodel" = fit_reg_Model_AIC, "fit measures" = t(results), "call" = call)
+      out <- computeFinalParameters(minimum_criterion = minimum_AIC, mxModelObject = mxModelObject,
+                                    alpha = alpha, gamma = gamma, regOn = regOn,
+                                    regIndicators = regIndicators, results = results)
     }
 
     if(criterion == "BIC"){
-      best_penalty = minimum_BIC
-      reg_Model_BIC <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
-      reg_Model_BIC <- mxOption(reg_Model_BIC, "Calculate Hessian", "No") # might cause errors; check
-      reg_Model_BIC <- mxOption(reg_Model_BIC, "Standard Errors", "No") # might cause errors; check
-
-      fit_reg_Model_BIC <- mxRun(reg_Model_BIC, silent = T)
-      out <- list("best penalty" = minimum_BIC, "bestmodel" = fit_reg_Model_BIC, "fit measures" = t(results), "call" = call)
+      out <- computeFinalParameters(minimum_criterion = minimum_BIC, mxModelObject = mxModelObject,
+                                    alpha = alpha, gamma = gamma, regOn = regOn,
+                                    regIndicators = regIndicators, results = results)
     }
 
     if(criterion == "CV.m2LL"){
-      best_penalty = minimum_CV.m2LL
-      reg_Model_CVm2LL <- regModel(mxModelObject = mxModelObject, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, regValue = best_penalty)
-      reg_Model_CVm2LL <- mxOption(reg_Model_CVm2LL, "Calculate Hessian", "No") # might cause errors; check
-      reg_Model_CVm2LL <- mxOption(reg_Model_CVm2LL, "Standard Errors", "No") # might cause errors; check
-
-      fit_reg_Model_CVm2LL <- mxRun(reg_Model_CVm2LL, silent = T)
-      out <- list("best penalty" = minimum_CV.m2LL, "bestmodel" = fit_reg_Model_CVm2LL, "fit measures" = t(results), "call" = call)
+      out <- computeFinalParameters(minimum_criterion = minimum_CV.m2LL, mxModelObject = mxModelObject,
+                                    alpha = alpha, gamma = gamma, regOn = regOn,
+                                    regIndicators = regIndicators, results = results)
     }
-    stopCluster(cl)
     class(out) <- "OptimRegModelObject"
+    stopCluster(cl)
     return(out)
 
 
@@ -263,11 +241,13 @@ MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, r
 
     full_raw_data <- mxModelObject$data$observed
 
-    Res <- matrix(NA, nrow = length(seq(from = regValue_start, to = regValue_end, by = regValue_stepsize)), ncol = k+4)
-    colnames(Res) <- c("penalty", "mean CV/Boot_m2LL",paste("fold", 1:k), "negative variances", "convergence problems")
-    Res[,"penalty"] <- seq(from = regValue_start, to = regValue_end, by = regValue_stepsize)
-    Res[,"negative variances"] <- 0
-    Res[,"convergence problems"] <- 0
+    # create a grid with all possible combinations of regValues:
+
+    RegValuesGrid <- createRegValueGrid(regValues = regValues, regOn = regOn)
+
+    # create list to store results
+
+    results <- createResultsList(RegValuesGrid = RegValuesGrid, autoCV = autoCV, k = k)
 
     fold <- 1
     for(Fold in Folds){
@@ -284,30 +264,36 @@ MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, r
 
       fit_trainModel <- optimRegModel(mxModelObject = trainModel, alpha = alpha, gamma = gamma, regOn = regOn,
                                       regIndicators = regIndicators,
-                                      regValue_start = regValue_start,
-                                      regValue_end = regValue_end,
-                                      regValue_stepsize = regValue_stepsize,
+                                      regValues = regValues,
                                       criterion = "CV.m2LL", autoCV = FALSE,
                                       Boot = FALSE, manualCV = Test_Sample,
                                       k = 5, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
 
-      Res[,paste("fold", fold)] <- fit_trainModel$`fit measures`[,'CV.m2LL']
-      Res[,"negative variances"] <- Res[,"negative variances"] + fit_trainModel$`fit measures`[,'negative variances']
-      Res[,"convergence problems"] <- Res[,"convergence problems"] + fit_trainModel$`fit measures`[,'convergence']
+      results[[paste("fold", fold)]] <- fit_trainModel$`fit measures`[['CV.m2LL']]
+      results[["negative variances"]] <- results[["negative variances"]] + fit_trainModel$`fit measures`[['negative variances']]
+      results[["convergence problems"]] <- results[["convergence problems"]] + fit_trainModel$`fit measures`[['convergence']]
 
       cat(paste("\n Completed CV for fold", fold, "of", k, "\n"))
 
       fold <- fold + 1
     }
 
-    # mean the m2LLs:
-    Res[,"mean CV/Boot_m2LL"] <- apply(Res[, paste("fold", 1:k)], 1, mean)
+    # mean of the m2LLs:
+    m2LLs <- results[[paste("fold", 1)]]
+    for(i in 2:k){
+      m2LLs <- cbind(m2LLs, results[[paste("fold", i)]])
+    }
+
+    results[["mean CV/Boot_m2LL"]] <- matrix(apply(m2LLs, 1, mean), ncol = 1)
 
     # only use runs without problems:
-    Res_final <- Res[Res[,"negative variances"] == 0 && Res[,"convergence problems"] == 0,]
+    convergeSubset <- (results[["convergence"]] == 0) & (results[["negative variances"]]==0)
 
     # find best penalty value:
-    best_penalty <- Res_final[which(Res_final[,"mean CV/Boot_m2LL"] == min(Res_final[,"mean CV/Boot_m2LL"])), "penalty"]
+
+    rowIndicators <- which(results[["mean CV/Boot_m2LL"]][convergeSubset] == min(results[["mean CV/Boot_m2LL"]][convergeSubset]))
+    best_penalty <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
+    colnames(best_penalty) = regOn
 
     # fit best penalty model with full data set:
     if(scaleCV){
@@ -320,10 +306,11 @@ MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, r
 
     ffinalModel <- mxRun(finalModel, silent = T)
 
-    ret <- list("CV results" = Res, "final Model" = ffinalModel, "best penalty" = best_penalty, "k" = k, "call" = call)
+    ret <- list("CV results" = results, "final Model" = ffinalModel, "best penalty" = best_penalty, "k" = k, "call" = call)
     class(ret) <- "CvOptimRegModelObject"
 
     return(ret)
+
 
   }
 

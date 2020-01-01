@@ -158,17 +158,7 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
 
   if (!autoCV & !Boot){
     # iterate over regValues:
-    if(is.list(regValues)){
-      # create a grid with all possible combinations of regValues:
-      RegValuesGrid <- as.matrix(expand.grid(regValues))
-
-    }else{
-      RegValuesGrid <- matrix(NA, nrow = length(regValues), ncol = length(regOn))
-      for(col in 1:length(regOn)){
-        RegValuesGrid[,col] <- regValues
-      }
-      colnames(RegValuesGrid) <- regOn
-    }
+    RegValuesGrid <- createRegValueGrid(regValues = regValues, regOn = regOn)
     # create list to store results
 
     results <- list("penalty"= RegValuesGrid, "estimated Parameters"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1), "m2LL"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1),"AIC"=matrix(NA, nrow = nrow(RegValuesGrid), ncol = 1),
@@ -219,7 +209,7 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
     results <- ParRes
 
     # Find Minima / best penalty value
-    convergeSubset <- (results[["convergence"]] == 0) & (results[["negative variances"]]==0)
+    convergedSubset <- (results[["convergence"]] == 0) & (results[["negative variances"]]==0)
 
     rowIndicators <- which(results[["m2LL"]][convergeSubset] == min(results[["m2LL"]][convergeSubset]))
     minimum_m2LL <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
@@ -373,17 +363,7 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
     # separate variables from dT and intervalID
     colsWithData <- grep("Y", colnames(full_raw_data))
 
-    if(is.list(regValues)){
-      # create a grid with all possible combinations of regValues:
-      RegValuesGrid <- as.matrix(expand.grid(regValues))
-
-    }else{
-      RegValuesGrid <- matrix(NA, nrow = length(regValues), ncol = length(regOn))
-      for(col in 1:length(regOn)){
-        RegValuesGrid[,col] <- regValues
-      }
-      colnames(RegValuesGrid) <- regOn
-    }
+    RegValuesGrid <- createRegValueGrid(regValues = regValues, regOn = regOn)
 
     Res <- vector("list", length = k+4)
     names(Res) <- c("penalty", "mean CV/Boot_m2LL", paste("fold", 1:k),

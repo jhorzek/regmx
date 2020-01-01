@@ -66,21 +66,9 @@
 regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, regValues = 0){
 
   ## Checks
-  ### fitfunction:
 
-  ### model Type
-  #if(!class(mxModelObject)[1] == "MxRAMModel"){
-  #  stop("Provided mxModelObject is not of type MxRAMModel")
-  #}
   ### regOn
-  for(matrixName in regOn) {
-    if(!matrixName %in% names(mxModelObject)){
-      stop(paste("Matrix ", matrixName, " provided in regOn was not found in the provided regModel", sep = ""))
-    }
-    if(!matrixName %in% names(regIndicators)){
-      stop(paste("Matrix ", matrixName, " provided in regOn was not found in the regIndicator list.", sep = ""))
-    }
-  }
+  checkRegularizedMatrixExistance(regOn = regOn, mxModelObject = mxModelObject, regIndicators = regIndicators)
 
   ### matrix dimensions
   for(matrix in regOn){
@@ -101,16 +89,12 @@ regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, 
 
   mxNumObs <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = numObs,name = "numObs") # define numObs as mxMatrix
 
-  # create mxMatrix from regValues:
-  mxRegValue <- mxMatrix(type= "Full", nrow= 1, ncol = 1, free = FALSE, values = regValues,name = "regValues") # define peanlty value
-
   # Define provided mxModelObject as submodel
   Submodel <- mxModel(mxModelObject, name = "Submodel") # has all the parameters and the base fit function (FML or FIML)
 
   outModel <- mxModel(model= "regmxModel", # model that is returned
                       Submodel, # BaseModel is a submodel of outModel. The elements of BaseModel can be accessed by the outModel
-                      mxNumObs,
-                      mxRegValue)
+                      mxNumObs)
 
   # Define the new fitting function:
 
@@ -123,6 +107,8 @@ regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, 
   names(mxRegIndicators) <- paste("selected",regOn, "Values", sep ="")
   mxRegFunctions <- vector("list", length = length(regOn))
   names(mxRegFunctions) <- paste("penaltyOn",regOn, sep ="")
+  mxRegValues <- vector("list", length = length(regOn))
+  names(mxRegValues) <- paste("regValues",regOn, sep ="")
   MLEEstimates <- vector("list", length = length(regOn))
   names(MLEEstimates) <- paste("MLE",regOn, "Estimate", sep ="")
 
@@ -132,24 +118,36 @@ regModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators, 
     MLEEstimates[[paste("MLE",matrix, "Estimate", sep ="")]] <- mxMatrix(type = "Full", values = mxModelObject[[matrix]]$values, free = F, name =names(MLEEstimates[paste("MLE",matrix, "Estimate", sep ="")]))
 
     mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name =names(mxRegIndicators[paste("selected",matrix, "Values", sep ="")]))
+
+    # create mxMatrix from regValues:
+    if(is.list(regValues)){
+      mxRegValues[[paste("regValues",matrix, sep ="")]] <- mxMatrix(type = "Full", values = regValues[[matrix]], free = F, nrow = 1, ncol = 1, name = names(mxRegValues[paste("regValues",matrix, sep ="")]))
+    }else{
+      mxRegValues[[paste("regValues",matrix, sep ="")]] <- mxMatrix(type = "Full", values = regValues, free = F,nrow = 1, ncol = 1, name = names(mxRegValues[paste("regValues",matrix, sep ="")]))
+    }
+
     # create mxAlgebra:
-    regularizationString <- paste("numObs*(regValues*((1-alpha)*sum(omxSelectRows(cvectorize(Submodel.",
-                                  matrix,"^2), cvectorize(selected",
-                                  matrix,"Values)))+alpha*(sum(omxSelectRows(cvectorize(abs(MLE",
-                                  matrix,"Estimate)^(-",gamma,")), cvectorize(selected",
+    mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name = names(mxRegIndicators[paste("selected",matrix, "Values", sep ="")]))
+
+    regularizationString <- paste("numObs*(regValues",matrix,"*((1-",alpha,")*sum(omxSelectRows(cvectorize((Submodel.",
+                                  matrix,")^2), cvectorize(selected",
+                                  matrix,"Values)))+",alpha,"*(sum(omxSelectRows(cvectorize(abs(MLE",
+                                  matrix,"Estimate^(-",gamma,"))), cvectorize(selected",
                                   matrix,"Values)) * omxSelectRows(cvectorize(abs(Submodel.",
                                   matrix,")), cvectorize(selected",matrix,"Values))))))", sep = "")
-mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]] <- mxAlgebraFromString(algString = regularizationString, name = paste("penaltyOn",matrix, sep =""))
 
-# Add mxRegIndicator and mxRegFunction to the model:
-outModel <- mxModel(outModel,
-                    mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]],
-                    mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]],
-                    MLEEstimates[[paste("MLE",matrix, "Estimate", sep ="")]]
-)
+    mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]] <- mxAlgebraFromString(algString = regularizationString, name = paste("penaltyOn",matrix, sep =""))
 
-# expand the fitting function:
-fitfun_string <- paste(fitfun_string,names(mxRegFunctions[paste("penaltyOn",matrix, sep ="")]), sep = " + ")
+    # Add mxRegIndicator and mxRegFunction to the model:
+    outModel <- mxModel(outModel,
+                        mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]],
+                        mxRegFunctions[[paste("penaltyOn",matrix, sep ="")]],
+                        MLEEstimates[[paste("MLE",matrix, "Estimate", sep ="")]],
+                        mxRegValues[[paste("regValues",matrix, sep ="")]]
+    )
+
+    # expand the fitting function:
+    fitfun_string <- paste(fitfun_string,names(mxRegFunctions[paste("penaltyOn",matrix, sep ="")]), sep = " + ")
 
   }
 

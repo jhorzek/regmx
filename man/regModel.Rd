@@ -4,8 +4,14 @@
 \alias{regModel}
 \title{regModel}
 \usage{
-regModel(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
-  regValue = 0)
+regModel(
+  mxModelObject,
+  alpha = 1,
+  gamma = 0,
+  regOn,
+  regIndicators,
+  regValues = 0
+)
 }
 \arguments{
 \item{mxModelObject}{an already run mxModel}
@@ -18,7 +24,7 @@ regModel(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
 
 \item{regIndicators}{list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter}
 
-\item{regValue}{numeric value depicting the penalty size}
+\item{regValues}{numeric value depicting the penalty size}
 }
 \description{
 Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
@@ -62,10 +68,10 @@ selectedA[c(2,3,7,8,9),10] <-1 # parameters that should be regularized have to b
 regIndicators <- list("A" = selectedA) # save in a list. Note the naming of the list element
 
 # size of the penalty:
-regValue = .2
+regValues = .2
 
 # implement lasso regularization:
-reg_model <- regModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = c("A"), regIndicators = regIndicators, regValue = regValue)
+reg_model <- regModel(mxModelObject = fit_myModel, alpha = 1, gamma = 0, regOn  = c("A"), regIndicators = regIndicators, regValues = regValues)
 fit_reg_model <- mxRun(reg_model)
 
 # extract the A matrix

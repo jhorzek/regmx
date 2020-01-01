@@ -4,23 +4,33 @@
 \alias{regCtModel}
 \title{regCtModel}
 \usage{
-regCtModel(ctsemModelObject, alpha = 1, gamma = 0, regOn,
-  regIndicators, regValue = 0, link, dt = NULL)
+regCtModel(
+  ctsemModelObject,
+  alpha = 1,
+  gamma = 0,
+  regOn,
+  regIndicators,
+  regValues = 0,
+  link,
+  dt = NULL
+)
 }
 \arguments{
 \item{ctsemModelObject}{an already run ctsem object}
+
+\item{alpha}{alpha controls the type of penalty. For lasso regularization, set alpha = 1, for ridge alpha = 0. Values between 0 and 1 implement elastic net regularization}
+
+\item{gamma}{gamma sets the power in the denominator of parameter specific weights when using adaptive lasso regularization. Make sure to set alpha to 1 when using a gamma other than 0.}
 
 \item{regOn}{string vector with matrices that should be regularized. The matrices must have the same name as the ones provided in the mxModelObject (e.g., "A")}
 
 \item{regIndicators}{list of matrices indicating which parameters to regularize in the matrices provided in regOn. The matrices in regIndicators must to have the same names as the matrices they correspond to (e.g., regIndicators = list("A" = diag(10))). 1 Indicates a parameter that will be regularized, 0 an unregularized parameter}
 
-\item{regValue}{numeric value depicting the penalty size}
+\item{regValues}{numeric value depicting the penalty size}
 
-\item{link}{list with functions that will be applied to the regularized matrices. For example, if the discrete time autoregressive and cross-lagged parameters should be regularized, use list("DRIFT" = "expm"). If no link ist provided, the ct parameters will be regularized directly.}
+\item{link}{list with functions that will be applied to the regularized matrices. For example, if the discrete time autoregressive and cross-lagged parameters should be regularized, use list("DRIFT" = "expm"). If link = "ident" is provided, the ct parameters will be regularized directly.}
 
 \item{dt}{list with vectors depicting the time points for which the discrete time parameters should be regularized (e.g., list("DRIFT" = c(1)))}
-
-\item{regType}{so far only "lasso" and "ridge" implemented}
 }
 \description{
 Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
@@ -72,11 +82,11 @@ regIndicators = list("DRIFT" = matrix(c(0,1,1,0), byrow = T, ncol = 2))
 link = list("DRIFT" = "expm")
 dt = list("DRIFT"= 1)
 
-# set regValue
-regValue = .2
+# set regValues
+regValues = .2
 
 # build regularized model
-myRegCtModel <- regCtModel(ctsemModelObject = fit_myModel, alpha = 1, gamma = 0, regOn = regOn, regIndicators = regIndicators, regValue = regValue, link = link, dt = dt)
+myRegCtModel <- regCtModel(ctsemModelObject = fit_myModel, alpha = 1, gamma = 0, regOn = regOn, regIndicators = regIndicators, regValues = regValues, link = link, dt = dt)
 fit_myRegCtModel <- mxRun(myRegCtModel)
 # extract DRIFT parameters for deltaT = 1
 expm(fit_myRegCtModel$Submodel$DRIFT$values)

@@ -4,8 +4,15 @@
 \alias{getCtFitMeasures}
 \title{getCtFitMeasures}
 \usage{
-getCtFitMeasures(regCtModel, regType, regOn, regIndicators,
-  cvSample = NULL, zeroThresh = 0.001)
+getCtFitMeasures(
+  regCtModel,
+  alpha = alpha,
+  gamma = gamma,
+  regOn,
+  regIndicators,
+  cvSample = NULL,
+  zeroThresh = 0.001
+)
 }
 \description{
 Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
