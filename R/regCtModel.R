@@ -71,7 +71,7 @@
 #' @import OpenMx ctsem
 #' @export
 
-regCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators, regValues = 0, link, dt = NULL){
+regCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators, regValues = 0, link, dt = NULL, scaleFactors = NULL){
 
   call <- mget(names(formals()),sys.frame(sys.nframe()))
 
@@ -160,6 +160,7 @@ regCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicat
     }
 
     # create mxAlgebra:
+
     mxRegIndicators[[paste("selected",matrix, "Values", sep ="")]] <- mxMatrix(type = "Full", values = regIndicators[[matrix]], free = F, name = names(mxRegIndicators[paste("selected",matrix, "Values", sep ="")]))
 
     if(link[[matrix]] == "expm"){
@@ -177,7 +178,7 @@ regCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicat
     }else if(link[[matrix]] == "QdeltaT"){
       stop("Regularization using QdeltaT not yet implemented.")
 
-    }else if(link[[matrix]] == "ident"){
+    }else if(link[[matrix]] == "ident" && is.null(scaleFactors)){
       # regularize ct parameter
           matrix_regstring <- paste("numObs*(regValues",matrix,"*((1-",alpha,")*sum(omxSelectRows(cvectorize((Submodel.",
                                     matrix,")^2), cvectorize(selected",
@@ -185,6 +186,22 @@ regCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicat
                                     matrix,"Estimate^(-",gamma,"))), cvectorize(selected",
                                     matrix,"Values)) * omxSelectRows(cvectorize(abs(Submodel.",
                                     matrix,")), cvectorize(selected",matrix,"Values))))))", sep = "")
+    }else if(link[[matrix]] == "ident" && !is.null(scaleFactors)){
+      warning("Experimental! Only implemented for penalty on DRIFT! See Harrell 2015, p. 209. Function ignores gamma, i.e. adaptive lasso is not yet implemented!")
+      if(!(matrix == "DRIFT")){
+        stop("only implemented for drift matrix")
+      }
+      if(scaleFactors == "autoScaleDRIFT"){
+        fullScaleFactorMatrixString <- "(diag2vec(Submodel.T0VAR)^(-1))%*%t(diag2vec(Submodel.T0VAR))"
+        selectedScaleFactorString <- paste("omxSelectRows(cvectorize(",fullScaleFactorMatrixString, "), cvectorize(selected",
+                                           matrix,"Values))", sep = "")
+      }
+      # regularize ct parameter
+      matrix_regstring <- paste("numObs*(regValues",matrix,"*((1-",alpha,")*t(",selectedScaleFactorString,")%*%(omxSelectRows(cvectorize((Submodel.",
+                                matrix,")^2), cvectorize(selected",
+                                matrix,"Values)))+",
+                                alpha,"*(t(",selectedScaleFactorString,")%*% omxSelectRows(cvectorize(abs(Submodel.",
+                                matrix,")), cvectorize(selected",matrix,"Values)))))", sep = "")
     }
 
       comb_matrix_regstring <- paste(matrix_regstring, collapse = "+")

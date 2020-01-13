@@ -94,7 +94,7 @@
 MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
                                      link = list("exp"), dt,
                                      regValues,
-                                     criterion = "BIC", autoCV = FALSE, Boot = FALSE, manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE, cores){
+                                     criterion = "BIC", autoCV = FALSE, Boot = FALSE, manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE, scaleFactors = NULL, cores){
 
   # save call:
   call <- mget(names(formals()),sys.frame(sys.nframe()))
@@ -176,7 +176,8 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
                         regValue <- RegValuesGrid[row,]
                         reg_ctModel <- regCtModel(ctsemModelObject = ctsemModelObject, link = link, dt = dt,alpha = alpha, gamma = gamma,regValues = regValue,
                                                   regOn = regOn,
-                                                  regIndicators = regIndicators)
+                                                  regIndicators = regIndicators,
+                                                  scaleFactors = scaleFactors)
 
                         reg_ctModel <- mxOption(reg_ctModel, "Calculate Hessian", "No") # might cause errors; check
                         reg_ctModel <- mxOption(reg_ctModel, "Standard Errors", "No") # might cause errors; check
@@ -194,7 +195,10 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
                           )}
 
                         ### compute AIC and BIC:
-                        FitM <- getCtFitMeasures(regCtModel = fit_reg_ctModel, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators, cvSample = manualCV, zeroThresh = zeroThresh)
+                        FitM <- getCtFitMeasures(regCtModel = fit_reg_ctModel, alpha = alpha,
+                                                 gamma = gamma, regOn = regOn,
+                                                 regIndicators = regIndicators, cvSample = manualCV,
+                                                 zeroThresh = zeroThresh)
 
                         estimated.Parameters <- FitM$estimated_params # estimated parameters
                         m2LL <- FitM$m2LL # -2LogL
@@ -247,7 +251,8 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
 
       reg_CtModel_m2LL <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                                      regOn = regOn, regIndicators = regIndicators,
-                                     regValues = regValue, link = link, dt = dt)
+                                     regValues = regValue, link = link, dt = dt,
+                                     scaleFactors = scaleFactors)
       reg_CtModel_m2LL <- mxOption(reg_CtModel_m2LL, "Calculate Hessian", "No") # might cause errors; check
       reg_CtModel_m2LL <- mxOption(reg_CtModel_m2LL, "Standard Errors", "No") # might cause errors; check
 
@@ -272,7 +277,8 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
       }
       reg_CtModel_AIC <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                                     regOn = regOn, regIndicators = regIndicators,
-                                    regValues = regValue, link = link, dt = dt)
+                                    regValues = regValue, link = link, dt = dt,
+                                    scaleFactors = scaleFactors)
       reg_CtModel_AIC <- mxOption(reg_CtModel_AIC, "Calculate Hessian", "No") # might cause errors; check
       reg_CtModel_AIC <- mxOption(reg_CtModel_AIC, "Standard Errors", "No") # might cause errors; check
 
@@ -297,7 +303,8 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
       }
       reg_CtModel_BIC <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                                     regOn = regOn, regIndicators = regIndicators,
-                                    regValues = regValue, link = link, dt = dt)
+                                    regValues = regValue, link = link, dt = dt,
+                                    scaleFactors = scaleFactors)
       reg_CtModel_BIC <- mxOption(reg_CtModel_BIC, "Calculate Hessian", "No") # might cause errors; check
       reg_CtModel_BIC <- mxOption(reg_CtModel_BIC, "Standard Errors", "No") # might cause errors; check
 
@@ -322,7 +329,8 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
       }
       reg_CtModel_CVm2LL <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                                        regOn = regOn, regIndicators = regIndicators,
-                                       regValues = regValue, link = link, dt = dt)
+                                       regValues = regValue, link = link, dt = dt,
+                                       scaleFactors = scaleFactors)
       reg_CtModel_CVm2LL <- mxOption(reg_CtModel_CVm2LL, "Calculate Hessian", "No") # might cause errors; check
       reg_CtModel_CVm2LL <- mxOption(reg_CtModel_CVm2LL, "Standard Errors", "No") # might cause errors; check
 
@@ -394,7 +402,7 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
       fit_trainModel <- optimRegCtModel(ctsemModelObject = trainModel, alpha = alpha, gamma = gamma, regOn = regOn, regIndicators = regIndicators,
                                         link = link, dt = dt,
                                         regValues = regValues,
-                                        criterion = "CV.m2LL", autoCV = FALSE, Boot = FALSE, manualCV = Test_Sample, k = k, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
+                                        criterion = "CV.m2LL", autoCV = FALSE, Boot = FALSE, manualCV = Test_Sample, k = k, zeroThresh = zeroThresh, scaleCV = scaleCV, scaleFactors = scaleFactors, cores = cores)
 
       Res[[paste("fold", fold)]] <- fit_trainModel$`fit measures`[['CV.m2LL']]
       Res[["negative variances"]] <- Res[["negative variances"]] + fit_trainModel$`fit measures`[['negative variances']]
@@ -445,7 +453,7 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
     }
     finalModel <- regCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma,
                              regOn = regOn, regIndicators = regIndicators,
-                             regValue = regValue, link = link, dt = dt)
+                             regValue = regValue, link = link, dt = dt, scaleFactors = scaleFactors)
     finalModel <- mxOption(finalModel, "Calculate Hessian", "No") # might cause errors; check
     finalModel <- mxOption(finalModel, "Standard Errors", "No") # might cause errors; check
 

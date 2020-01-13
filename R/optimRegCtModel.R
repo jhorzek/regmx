@@ -95,7 +95,9 @@
 optimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
                             link = list("ident"), dt,
                             regValues,
-                            criterion = "BIC", autoCV = FALSE, Boot = FALSE, manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE, cores = 1){
+                            criterion = "BIC", autoCV = FALSE, Boot = FALSE,
+                            manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE,
+                            scaleFactors = scaleFactors, cores = 1){
 
   if(cores == 1){
 
