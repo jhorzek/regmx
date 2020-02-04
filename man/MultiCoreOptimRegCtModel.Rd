@@ -20,6 +20,7 @@ MultiCoreOptimRegCtModel(
   k = 5,
   zeroThresh = 0.001,
   scaleCV = TRUE,
+  scaleFactors = NULL,
   cores
 )
 }

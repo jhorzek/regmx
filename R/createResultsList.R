@@ -1,3 +1,10 @@
+#' createResultsList
+#'
+#'
+#' creates a list to store the results
+#' @author Jannik Orzek
+#'
+#' @export
 createResultsList <- function(RegValuesGrid, autoCV, k){
   if(autoCV){
     results <- vector("list", length = k+4)

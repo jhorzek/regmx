@@ -88,7 +88,7 @@
 #' expm(CV_myRegCtModel$`final Model`$Submodel$DRIFT$values)
 #'
 #' @author Jannik Orzek
-#' @import OpenMx ctsem doParallel
+#' @import OpenMx ctsem doParallel foreach iterators parallel
 #' @export
 
 MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
@@ -215,19 +215,19 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
     # Find Minima / best penalty value
     convergedSubset <- (results[["convergence"]] == 0) & (results[["negative variances"]]==0)
 
-    rowIndicators <- which(results[["m2LL"]][convergeSubset] == min(results[["m2LL"]][convergeSubset]))
+    rowIndicators <- which(results[["m2LL"]][convergedSubset] == min(results[["m2LL"]][convergedSubset]))
     minimum_m2LL <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
     colnames(minimum_m2LL) = regOn
 
-    rowIndicators <- which(results[["AIC"]][convergeSubset] == min(results[["AIC"]][convergeSubset]))
+    rowIndicators <- which(results[["AIC"]][convergedSubset] == min(results[["AIC"]][convergedSubset]))
     minimum_AIC <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
     colnames(minimum_AIC) = regOn
 
-    rowIndicators <- which(results[["BIC"]][convergeSubset] == min(results[["BIC"]][convergeSubset]))
+    rowIndicators <- which(results[["BIC"]][convergedSubset] == min(results[["BIC"]][convergedSubset]))
     minimum_BIC <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
     colnames(minimum_BIC) = regOn
 
-    rowIndicators <- which(results[["CV.m2LL"]][convergeSubset] == min(results[["CV.m2LL"]][convergeSubset]))
+    rowIndicators <- which(results[["CV.m2LL"]][convergedSubset] == min(results[["CV.m2LL"]][convergedSubset]))
     minimum_CV.m2LL <- matrix(results[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
     colnames(minimum_CV.m2LL) = regOn
 
@@ -422,12 +422,12 @@ MultiCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, reg
     Res[["mean CV/Boot_m2LL"]] <- matrix(apply(m2LLs, 1, mean), ncol = 1)
 
     # only use runs without problems:
-    convergeSubset <- (Res[["convergence"]] == 0) & (Res[["negative variances"]]==0)
+    convergedSubset <- (Res[["convergence"]] == 0) & (Res[["negative variances"]]==0)
 
     # find best penalty value:
     # find best penalty value:
 
-    rowIndicators <- which(Res[["mean CV/Boot_m2LL"]][convergeSubset] == min(Res[["mean CV/Boot_m2LL"]][convergeSubset]))
+    rowIndicators <- which(Res[["mean CV/Boot_m2LL"]][convergedSubset] == min(Res[["mean CV/Boot_m2LL"]][convergedSubset]))
     best_penalty <- matrix(Res[["penalty"]][rowIndicators,], ncol = length(regOn), byrow = T)
     colnames(best_penalty) = regOn
 

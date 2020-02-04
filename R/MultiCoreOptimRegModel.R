@@ -70,7 +70,7 @@
 #' CV_reg_model$`CV results`
 #'
 #' @author Jannik Orzek
-#' @import OpenMx doParallel
+#' @import OpenMx doParallel foreach iterators parallel
 #' @export
 
 MultiCoreOptimRegModel <- function(mxModelObject, alpha = 1, gamma = 0, regOn, regIndicators,

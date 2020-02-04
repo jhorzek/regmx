@@ -1,3 +1,10 @@
+#' computeFinalctParameters
+#'
+#'
+#' computes the finale ct parameters
+#' @author Jannik Orzek
+#'
+#' @export
 computeFinalctParameters <- function(minimum_criterion, ctsemModelObject, alpha, gamma, regOn, regIndicators, link, dt, results){
 
   if(nrow(minimum_criterion)>1){

@@ -4,8 +4,13 @@
 \alias{regMultiGroup}
 \title{regMultiGroup}
 \usage{
-regMultiGroup(mxModelObjects, regOn, regType = "lasso", regIndicators,
-  regValue = 0)
+regMultiGroup(
+  mxModelObjects,
+  regOn,
+  regType = "lasso",
+  regIndicators,
+  regValue = 0
+)
 }
 \arguments{
 \item{mxModelObjects}{a list with mxModels for the different groups}

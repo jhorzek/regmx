@@ -1,3 +1,10 @@
+#' checkRegularizedMatrixExistance
+#'
+#'
+#' checks if the matrix that should be regularized actually exists
+#' @author Jannik Orzek
+#'
+#' @export
 checkRegularizedMatrixExistance <- function(regOn, mxModelObject, regIndicators){
   for(matrixName in regOn) {
     if(!matrixName %in% names(mxModelObject)){

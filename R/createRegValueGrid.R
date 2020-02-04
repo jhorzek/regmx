@@ -1,3 +1,10 @@
+#' createRegValueGrid
+#'
+#'
+#' creates a grid of tuning parameters
+#' @author Jannik Orzek
+#'
+#' @export
 createRegValueGrid <- function(regValues, regOn){
   if(is.list(regValues)){
     # create a grid with all possible combinations of regValues:

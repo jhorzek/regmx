@@ -12,7 +12,8 @@ regCtModel(
   regIndicators,
   regValues = 0,
   link,
-  dt = NULL
+  dt = NULL,
+  scaleFactors = NULL
 )
 }
 \arguments{

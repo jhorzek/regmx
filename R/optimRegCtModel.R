@@ -93,7 +93,7 @@
 #' @export
 
 optimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
-                            link = list("ident"), dt,
+                            link = list("ident"), dt = NULL,
                             regValues,
                             criterion = "BIC", autoCV = FALSE, Boot = FALSE,
                             manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE,
@@ -101,12 +101,12 @@ optimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIn
 
   if(cores == 1){
 
-    ret <- SingleCoreOptimRegCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma, regOn=regOn, regIndicators = regIndicators,
+    ret <- regmx::SingleCoreOptimRegCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma, regOn=regOn, regIndicators = regIndicators,
                                      link = link , dt = dt,
                                      regValues = regValues,
                                      criterion = criterion, autoCV = autoCV, Boot = Boot, manualCV = manualCV, k = k, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)
   }else{
-    ret <- MultiCoreOptimRegCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma, regOn=regOn, regIndicators = regIndicators,
+    ret <- regmx::MultiCoreOptimRegCtModel(ctsemModelObject = ctsemModelObject, alpha = alpha, gamma = gamma, regOn=regOn, regIndicators = regIndicators,
                                     link = link , dt = dt,
                                     regValues = regValues,
                                     criterion = criterion, autoCV = autoCV, Boot = Boot, manualCV = manualCV, k = k, zeroThresh = zeroThresh, scaleCV = scaleCV, cores = cores)

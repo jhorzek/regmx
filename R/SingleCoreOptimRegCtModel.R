@@ -1,6 +1,5 @@
 #' SingleCoreOptimRegCtModel
 #'
-#' Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
 #' SingleCoreOptimRegCtModel creates a range of regularized models from a ctsem. It automatically tests different penalty values and returns the best model. It uses a single core.
 #'
 #' @param ctsemModelObject an already run ctsem object
@@ -92,7 +91,7 @@
 #' @export
 
 SingleCoreOptimRegCtModel <- function(ctsemModelObject, alpha = 1, gamma = 0, regOn, regIndicators,
-                                      link = list("exp"), dt,
+                                      link = list("exp"), dt = NULL,
                                       regValues,
                                       criterion = "BIC", autoCV = FALSE, Boot = FALSE, manualCV = NULL, k = 5, zeroThresh = .001, scaleCV = TRUE, scaleFactors = NULL, cores = 1){
 

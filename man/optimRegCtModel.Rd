@@ -11,7 +11,7 @@ optimRegCtModel(
   regOn,
   regIndicators,
   link = list("ident"),
-  dt,
+  dt = NULL,
   regValues,
   criterion = "BIC",
   autoCV = FALSE,
@@ -20,6 +20,7 @@ optimRegCtModel(
   k = 5,
   zeroThresh = 0.001,
   scaleCV = TRUE,
+  scaleFactors = scaleFactors,
   cores = 1
 )
 }

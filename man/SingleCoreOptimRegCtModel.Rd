@@ -11,7 +11,7 @@ SingleCoreOptimRegCtModel(
   regOn,
   regIndicators,
   link = list("exp"),
-  dt,
+  dt = NULL,
   regValues,
   criterion = "BIC",
   autoCV = FALSE,
@@ -20,6 +20,7 @@ SingleCoreOptimRegCtModel(
   k = 5,
   zeroThresh = 0.001,
   scaleCV = TRUE,
+  scaleFactors = NULL,
   cores = 1
 )
 }
@@ -61,7 +62,6 @@ SingleCoreOptimRegCtModel(
 \item{regValue_stepsize}{increase in penValue between iterations}
 }
 \description{
-Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!
 SingleCoreOptimRegCtModel creates a range of regularized models from a ctsem. It automatically tests different penalty values and returns the best model. It uses a single core.
 }
 \examples{

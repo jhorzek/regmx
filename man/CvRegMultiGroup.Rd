@@ -4,10 +4,20 @@
 \alias{CvRegMultiGroup}
 \title{CvRegMultiGroup}
 \usage{
-CvRegMultiGroup(mxModelObjects, regOn, regType = "lasso", regIndicators,
-  regValue_start = 0, regValue_end = 1, regValue_stepsize = 0.01,
-  autoCV = FALSE, k = 5, manualCV = NULL, zeroThresh = 0.001,
-  scaleCV = TRUE)
+CvRegMultiGroup(
+  mxModelObjects,
+  regOn,
+  regType = "lasso",
+  regIndicators,
+  regValue_start = 0,
+  regValue_end = 1,
+  regValue_stepsize = 0.01,
+  autoCV = FALSE,
+  k = 5,
+  manualCV = NULL,
+  zeroThresh = 0.001,
+  scaleCV = TRUE
+)
 }
 \description{
 Note: regmx is based on the R package \pkg{regsem}. Because of the early status of regmx, it is recommended to use regsem instead!

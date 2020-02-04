@@ -1,3 +1,10 @@
+#' computeFinalParameters
+#'
+#'
+#' computes the finale parameters
+#' @author Jannik Orzek
+#'
+#' @export
 computeFinalParameters <- function(minimum_criterion, mxModelObject, alpha, gamma, regOn, regIndicators, results){
 
   if(nrow(minimum_criterion)>1){
